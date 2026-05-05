@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — Round 5
+
+- Migrated H.264 parser to `oxideav-bitstream`. The crate-local
+  `src/h264_parser.rs` module (Annex-B walker, EBSP→RBSP stripper,
+  Exp-Golomb bit reader, minimal SPS / PPS decoder) has been deleted;
+  the same parsing job is now done by the workspace-shared
+  `oxideav_bitstream::h264` API (`split_annex_b`, `parse_sps_nal`,
+  `parse_pps_nal`, `H264Sps`, `H264Pps`, `NAL_TYPE_*`). The Vulkan
+  Video decode pipeline itself — `StdVideoH264*` struct construction,
+  `VkVideoSessionParametersKHR` creation, command-buffer recording,
+  queue submission — is unchanged.
+- New target-gated dependency: `oxideav-bitstream = "0.0"` under
+  `[target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]`,
+  matching the rest of the crate body's cfg.
+- All Round 2 / Round 3 / Round 4 tests still pass through
+  `vkEndCommandBuffer`. The reproducible NVIDIA-driver SIGSEGV at
+  `vkQueueSubmit`-time is unrelated to parsing and remains absorbed
+  by the `round4_decode_helper` subprocess as before.
+
 ### Added — Round 4
 
 - New module `h264_parser` — minimal IDR-only H.264 Annex-B / RBSP

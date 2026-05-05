@@ -49,40 +49,50 @@ fn read_reference_yuv() -> Option<Vec<u8>> {
 
 #[test]
 fn h264_parser_finds_sps_pps() {
-    use oxideav_vulkan_video::h264_parser::{iter_nals, nal_type, parse_pps, parse_sps};
+    use oxideav_bitstream::h264::{
+        parse_pps_nal, parse_sps_nal, split_annex_b, NAL_TYPE_IDR, NAL_TYPE_PPS, NAL_TYPE_SPS,
+    };
 
     let Some(bytes) = read_fixture() else {
         return;
     };
 
-    let nals = iter_nals(&bytes);
+    let nals = split_annex_b(&bytes);
     let mut have_sps = false;
     let mut have_pps = false;
     let mut have_idr = false;
     for nal in &nals {
         match nal[0] & 0x1F {
-            nal_type::SPS => {
-                let s = parse_sps(nal).expect("SPS parse");
+            NAL_TYPE_SPS => {
+                let s = parse_sps_nal(nal).expect("SPS parse");
                 eprintln!(
-                    "SPS: profile={} level={} chroma={} {}x{} (raw {}x{}) crop_flag={}",
+                    "SPS: profile={} level={} chroma={} display={}x{} (coded {}x{}) cropping={}",
                     s.profile_idc,
                     s.level_idc,
                     s.chroma_format_idc,
-                    s.coded_width,
-                    s.coded_height,
-                    s.raw_width,
-                    s.raw_height,
-                    s.frame_cropping_flag,
+                    s.display_width(),
+                    s.display_height(),
+                    s.coded_width(),
+                    s.coded_height(),
+                    s.frame_cropping.is_some(),
                 );
                 assert_eq!(s.profile_idc, 100, "expected H.264 High");
-                assert!(s.raw_width >= 320, "raw_width {} too small", s.raw_width);
-                assert!(s.raw_height >= 240, "raw_height {} too small", s.raw_height);
-                assert_eq!(s.coded_width, 320);
-                assert_eq!(s.coded_height, 240);
+                assert!(
+                    s.coded_width() >= 320,
+                    "coded_width {} too small",
+                    s.coded_width()
+                );
+                assert!(
+                    s.coded_height() >= 240,
+                    "coded_height {} too small",
+                    s.coded_height()
+                );
+                assert_eq!(s.display_width(), 320);
+                assert_eq!(s.display_height(), 240);
                 have_sps = true;
             }
-            nal_type::PPS => {
-                let p = parse_pps(nal).expect("PPS parse");
+            NAL_TYPE_PPS => {
+                let p = parse_pps_nal(nal).expect("PPS parse");
                 eprintln!(
                     "PPS: pps_id={} sps_id={} entropy={} weighted_pred={}",
                     p.pic_parameter_set_id,
@@ -92,7 +102,7 @@ fn h264_parser_finds_sps_pps() {
                 );
                 have_pps = true;
             }
-            nal_type::SLICE_IDR => have_idr = true,
+            NAL_TYPE_IDR => have_idr = true,
             _ => {}
         }
     }

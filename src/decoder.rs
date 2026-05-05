@@ -10,7 +10,8 @@
 //! # Pipeline shape
 //!
 //! 1. Parse Annex-B SPS / PPS into the `StdVideoH264*` structs the GPU
-//!    consumes (see [`crate::h264_parser`]).
+//!    consumes (delegated to the workspace-shared
+//!    [`oxideav_bitstream::h264`] parser).
 //! 2. Open a `VkInstance` (Vulkan 1.2), pick a discrete GPU that
 //!    advertises `VK_KHR_video_decode_h264`, and create a `VkDevice`
 //!    with a queue from a video-decode-capable queue family.
@@ -61,8 +62,12 @@ use std::ptr;
 
 use oxideav_core::{CodecId, CodecParameters, Error, Frame, Packet, Result, VideoFrame, VideoPlane};
 
+use oxideav_bitstream::h264::{
+    self as bs_h264, H264Pps, H264Sps, NAL_TYPE_IDR, NAL_TYPE_NON_IDR_SLICE, NAL_TYPE_PPS,
+    NAL_TYPE_SPS,
+};
+
 use crate::device::Device;
-use crate::h264_parser::{self, nal_type, ParsedPps, ParsedSps};
 use crate::instance::Instance;
 use crate::physical_device::{
     VK_KHR_VIDEO_DECODE_H264_NAME, VK_KHR_VIDEO_DECODE_QUEUE_NAME, VK_KHR_VIDEO_QUEUE_NAME,
@@ -393,7 +398,7 @@ impl H264VkDecoder {
         }))
     }
 
-    fn ensure_state(&mut self, sps: &ParsedSps, pps: &ParsedPps) -> Result<()> {
+    fn ensure_state(&mut self, sps: &H264Sps, pps: &H264Pps) -> Result<()> {
         if self.state.is_some() {
             return Ok(());
         }
@@ -404,7 +409,7 @@ impl H264VkDecoder {
 
     /// Submit one Annex-B picture (SPS+PPS+slice) to the GPU and copy
     /// the decoded NV12 frame back into `self.output_queue`.
-    fn submit_picture(&mut self, picture_bytes: &[u8], sps: &ParsedSps) -> Result<()> {
+    fn submit_picture(&mut self, picture_bytes: &[u8], sps: &H264Sps) -> Result<()> {
         let state = self.state.as_mut().ok_or_else(|| {
             Error::other("vulkan-video: ensure_state must be called before submit_picture")
         })?;
@@ -422,7 +427,7 @@ impl oxideav_core::Decoder for H264VkDecoder {
     fn send_packet(&mut self, packet: &Packet) -> Result<()> {
         self.flushed = false;
 
-        let nals = h264_parser::iter_nals(&packet.data);
+        let nals = bs_h264::split_annex_b(&packet.data);
 
         // Collect the full Annex-B bitstream (including SPS/PPS) so the
         // GPU can re-parse from raw H.264 bytes; we still extract the
@@ -434,12 +439,12 @@ impl oxideav_core::Decoder for H264VkDecoder {
             }
             let nt = nal[0] & 0x1F;
             match nt {
-                nal_type::SPS => {
+                NAL_TYPE_SPS => {
                     self.sps_nals.clear();
                     self.sps_nals.push(nal.to_vec());
                     got_params = true;
                 }
-                nal_type::PPS => {
+                NAL_TYPE_PPS => {
                     self.pps_nals.clear();
                     self.pps_nals.push(nal.to_vec());
                     got_params = true;
@@ -452,10 +457,10 @@ impl oxideav_core::Decoder for H264VkDecoder {
             let sps_nal = self.sps_nals.first().cloned();
             let pps_nal = self.pps_nals.first().cloned();
             if let (Some(s), Some(p)) = (sps_nal, pps_nal) {
-                let parsed_sps = h264_parser::parse_sps(&s)
-                    .ok_or_else(|| Error::other("vulkan-video: SPS parse failed"))?;
-                let parsed_pps = h264_parser::parse_pps(&p)
-                    .ok_or_else(|| Error::other("vulkan-video: PPS parse failed"))?;
+                let parsed_sps = bs_h264::parse_sps_nal(&s)
+                    .map_err(|e| Error::other(format!("vulkan-video: SPS parse failed: {e}")))?;
+                let parsed_pps = bs_h264::parse_pps_nal(&p)
+                    .map_err(|e| Error::other(format!("vulkan-video: PPS parse failed: {e}")))?;
                 self.ensure_state(&parsed_sps, &parsed_pps)?;
             }
         }
@@ -467,7 +472,7 @@ impl oxideav_core::Decoder for H264VkDecoder {
                 continue;
             }
             let nt = nal[0] & 0x1F;
-            if nt == nal_type::SLICE_IDR || nt == nal_type::SLICE {
+            if nt == NAL_TYPE_IDR || nt == NAL_TYPE_NON_IDR_SLICE {
                 have_vcl = true;
                 break;
             }
@@ -477,10 +482,10 @@ impl oxideav_core::Decoder for H264VkDecoder {
             return Ok(());
         }
 
-        let parsed_sps = h264_parser::parse_sps(self.sps_nals.first().ok_or_else(|| {
+        let parsed_sps = bs_h264::parse_sps_nal(self.sps_nals.first().ok_or_else(|| {
             Error::other("vulkan-video: VCL slice arrived before SPS")
         })?)
-        .ok_or_else(|| Error::other("vulkan-video: SPS parse failed"))?;
+        .map_err(|e| Error::other(format!("vulkan-video: SPS parse failed: {e}")))?;
 
         // The "picture bytes" we send to the GPU are the full packet's
         // Annex-B payload (SPS + PPS + slice). NVIDIA's driver
@@ -506,7 +511,7 @@ impl oxideav_core::Decoder for H264VkDecoder {
 // ─────────────────────────── DecoderState — heavy lifting ────────────────────
 
 impl DecoderState {
-    fn create(sps: &ParsedSps, pps: &ParsedPps) -> Result<Self> {
+    fn create(sps: &H264Sps, pps: &H264Pps) -> Result<Self> {
         // ── Instance ────────────────────────────────────────────
         let instance = Instance::new("oxideav-vulkan-video", VK_API_VERSION_1_2)
             .map_err(|e| Error::unsupported(format!("vulkan-video: {e}")))?;
@@ -607,8 +612,8 @@ impl DecoderState {
             .ok_or_else(|| Error::other("vulkan-video: pd lookup3 failed"))?;
         // We size the session to a generous max so all reasonable test
         // streams fit. Round up to picture-access-granularity.
-        let max_w = sps.raw_width.max(caps.min_coded_extent.0);
-        let max_h = sps.raw_height.max(caps.min_coded_extent.1);
+        let max_w = sps.coded_width().max(caps.min_coded_extent.0);
+        let max_h = sps.coded_height().max(caps.min_coded_extent.1);
         let max_w = max_w.min(caps.max_coded_extent.0).max(16);
         let max_h = max_h.min(caps.max_coded_extent.1).max(16);
 
@@ -1169,8 +1174,8 @@ impl DecoderState {
             physical_device_handle: pd_handle,
             device,
             instance,
-            width: sps.coded_width.min(max_w),
-            height: sps.coded_height.min(max_h),
+            width: sps.display_width().min(max_w),
+            height: sps.display_height().min(max_h),
             luma_stride,
             chroma_stride,
             chroma_height,
@@ -1183,7 +1188,7 @@ impl DecoderState {
     fn decode_picture(
         &mut self,
         bitstream: &[u8],
-        sps: &ParsedSps,
+        sps: &H264Sps,
         out_queue: &mut VecDeque<VideoFrame>,
     ) -> Result<()> {
         if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: decode_picture (bitstream={})", bitstream.len());}
@@ -1256,8 +1261,8 @@ impl DecoderState {
             p_next: ptr::null(),
             coded_offset: VkOffset2D { x: 0, y: 0 },
             coded_extent: VkExtent2D {
-                width: sps.raw_width.max(self.width),
-                height: sps.raw_height.max(self.height),
+                width: sps.coded_width().max(self.width),
+                height: sps.coded_height().max(self.height),
             },
             base_array_layer: 0,
             image_view_binding: self.dpb_image_view,
@@ -1300,8 +1305,8 @@ impl DecoderState {
                 p_next: ptr::null(),
                 coded_offset: VkOffset2D { x: 0, y: 0 },
                 coded_extent: VkExtent2D {
-                    width: sps.raw_width.max(self.width),
-                    height: sps.raw_height.max(self.height),
+                    width: sps.coded_width().max(self.width),
+                    height: sps.coded_height().max(self.height),
                 },
                 base_array_layer: 0,
                 image_view_binding: self.output_image_view,
@@ -1312,8 +1317,8 @@ impl DecoderState {
                 p_next: ptr::null(),
                 coded_offset: VkOffset2D { x: 0, y: 0 },
                 coded_extent: VkExtent2D {
-                    width: sps.raw_width.max(self.width),
-                    height: sps.raw_height.max(self.height),
+                    width: sps.coded_width().max(self.width),
+                    height: sps.coded_height().max(self.height),
                 },
                 base_array_layer: 0,
                 image_view_binding: self.output_image_view,
@@ -1677,9 +1682,9 @@ impl DecoderState {
     }
 }
 
-// ─────────────────────────── ParsedSps/PPS → Std structs ──────────────────────
+// ─────────────────────── H264Sps/H264Pps → Std structs ──────────────────────
 
-fn std_sps_from_parsed(s: &ParsedSps) -> StdVideoH264SequenceParameterSet {
+fn std_sps_from_parsed(s: &H264Sps) -> StdVideoH264SequenceParameterSet {
     let mut flags: u32 = 0;
     if s.constraint_set_flags & 0x80 != 0 {
         flags |= StdVideoH264SpsFlags::CONSTRAINT_SET0;
@@ -1687,24 +1692,25 @@ fn std_sps_from_parsed(s: &ParsedSps) -> StdVideoH264SequenceParameterSet {
     if s.constraint_set_flags & 0x40 != 0 {
         flags |= StdVideoH264SpsFlags::CONSTRAINT_SET1;
     }
-    if s.direct_8x8_inference_flag != 0 {
+    if s.direct_8x8_inference_flag {
         flags |= StdVideoH264SpsFlags::DIRECT_8X8_INFERENCE;
     }
-    if s.mb_adaptive_frame_field_flag != 0 {
+    if s.mb_adaptive_frame_field_flag {
         flags |= StdVideoH264SpsFlags::MB_ADAPTIVE_FRAME_FIELD;
     }
-    if s.frame_mbs_only_flag != 0 {
+    if s.frame_mbs_only_flag {
         flags |= StdVideoH264SpsFlags::FRAME_MBS_ONLY;
     }
-    if s.gaps_in_frame_num_value_allowed_flag != 0 {
+    if s.gaps_in_frame_num_value_allowed_flag {
         flags |= StdVideoH264SpsFlags::GAPS_IN_FRAME_NUM;
     }
-    if s.frame_cropping_flag != 0 {
+    let crop = s.frame_cropping.unwrap_or_default();
+    if s.frame_cropping.is_some() {
         flags |= StdVideoH264SpsFlags::FRAME_CROPPING;
     }
-    if s.vui_parameters_present_flag != 0 {
-        flags |= StdVideoH264SpsFlags::VUI_PARAMETERS_PRESENT;
-    }
+    // VUI is not parsed by oxideav-bitstream, so we never set the
+    // VUI_PARAMETERS_PRESENT flag and leave `p_sequence_parameter_set_vui`
+    // null. The IDR-only fixture works fine without it.
     StdVideoH264SequenceParameterSet {
         flags: StdVideoH264SpsFlags { flags },
         profile_idc: s.profile_idc as i32,
@@ -1719,14 +1725,14 @@ fn std_sps_from_parsed(s: &ParsedSps) -> StdVideoH264SequenceParameterSet {
         offset_for_top_to_bottom_field: 0,
         log2_max_pic_order_cnt_lsb_minus4: s.log2_max_pic_order_cnt_lsb_minus4,
         num_ref_frames_in_pic_order_cnt_cycle: 0,
-        max_num_ref_frames: s.max_num_ref_frames,
+        max_num_ref_frames: s.max_num_ref_frames as u8,
         reserved1: 0,
         pic_width_in_mbs_minus1: s.pic_width_in_mbs_minus1,
         pic_height_in_map_units_minus1: s.pic_height_in_map_units_minus1,
-        frame_crop_left_offset: s.frame_crop_left_offset,
-        frame_crop_right_offset: s.frame_crop_right_offset,
-        frame_crop_top_offset: s.frame_crop_top_offset,
-        frame_crop_bottom_offset: s.frame_crop_bottom_offset,
+        frame_crop_left_offset: crop.left,
+        frame_crop_right_offset: crop.right,
+        frame_crop_top_offset: crop.top,
+        frame_crop_bottom_offset: crop.bottom,
         reserved2: 0,
         p_offset_for_ref_frame: ptr::null(),
         p_scaling_lists: ptr::null(),
@@ -1734,32 +1740,32 @@ fn std_sps_from_parsed(s: &ParsedSps) -> StdVideoH264SequenceParameterSet {
     }
 }
 
-fn std_pps_from_parsed(p: &ParsedPps) -> StdVideoH264PictureParameterSet {
+fn std_pps_from_parsed(p: &H264Pps) -> StdVideoH264PictureParameterSet {
     let mut flags: u32 = 0;
-    if p.transform_8x8_mode_flag != 0 {
+    if p.transform_8x8_mode_flag {
         flags |= StdVideoH264PpsFlags::TRANSFORM_8X8_MODE;
     }
-    if p.redundant_pic_cnt_present_flag != 0 {
+    if p.redundant_pic_cnt_present_flag {
         flags |= StdVideoH264PpsFlags::REDUNDANT_PIC_CNT;
     }
-    if p.constrained_intra_pred_flag != 0 {
+    if p.constrained_intra_pred_flag {
         flags |= StdVideoH264PpsFlags::CONSTRAINED_INTRA_PRED;
     }
-    if p.deblocking_filter_control_present_flag != 0 {
+    if p.deblocking_filter_control_present_flag {
         flags |= StdVideoH264PpsFlags::DEBLOCK_FILTER_CTRL;
     }
-    if p.weighted_pred_flag != 0 {
+    if p.weighted_pred_flag {
         flags |= StdVideoH264PpsFlags::WEIGHTED_PRED;
     }
-    if p.bottom_field_pic_order_in_frame_present_flag != 0 {
+    if p.bottom_field_pic_order_in_frame_present_flag {
         flags |= StdVideoH264PpsFlags::BOTTOM_FIELD_POC_IN_FRAME;
     }
-    if p.entropy_coding_mode_flag != 0 {
+    if p.entropy_coding_mode_flag {
         flags |= StdVideoH264PpsFlags::ENTROPY_CODING_MODE;
     }
-    if p.pic_scaling_matrix_present_flag != 0 {
-        flags |= StdVideoH264PpsFlags::PIC_SCALING_MATRIX;
-    }
+    // pic_scaling_matrix_present_flag — oxideav-bitstream rejects PPS
+    // with scaling-matrix-present (Unsupported) so by construction this
+    // flag is always 0 for any parsed PPS we get here.
     StdVideoH264PictureParameterSet {
         flags: StdVideoH264PpsFlags { flags },
         seq_parameter_set_id: p.seq_parameter_set_id,
@@ -1767,10 +1773,10 @@ fn std_pps_from_parsed(p: &ParsedPps) -> StdVideoH264PictureParameterSet {
         num_ref_idx_l0_default_active_minus1: p.num_ref_idx_l0_default_active_minus1,
         num_ref_idx_l1_default_active_minus1: p.num_ref_idx_l1_default_active_minus1,
         weighted_bipred_idc: p.weighted_bipred_idc as i32,
-        pic_init_qp_minus26: p.pic_init_qp_minus26,
-        pic_init_qs_minus26: p.pic_init_qs_minus26,
-        chroma_qp_index_offset: p.chroma_qp_index_offset,
-        second_chroma_qp_index_offset: p.second_chroma_qp_index_offset,
+        pic_init_qp_minus26: p.pic_init_qp_minus26 as i8,
+        pic_init_qs_minus26: p.pic_init_qs_minus26 as i8,
+        chroma_qp_index_offset: p.chroma_qp_index_offset as i8,
+        second_chroma_qp_index_offset: p.second_chroma_qp_index_offset as i8,
         p_scaling_lists: ptr::null(),
     }
 }

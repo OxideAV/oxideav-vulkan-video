@@ -25,6 +25,12 @@ oxideav-core = { version = "0.1", optional = true }
 # to an empty rlib elsewhere.
 [target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
 libloading = "0.8"
+# Shared H.264 / HEVC / AV1 minimal parser used to extract SPS / PPS /
+# slice-header fields before populating `StdVideoH264*` structs for the
+# Vulkan video session parameters. The bitstream crate has no target
+# gate of its own (pure Rust, no FFI), so adding it under the
+# linux/windows gate lines up with the rest of the crate body.
+oxideav-bitstream = { version = "0.0" }
 # Distributed-slice auto-registration into `oxideav_core::REGISTRARS`
 # via the `oxideav_core::register!` macro. Same target gate as the
 # rest of the crate body. Optional + gated behind `registry` so

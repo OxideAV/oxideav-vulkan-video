@@ -54,7 +54,6 @@
 //! from libvpx, libwebp, libjxl, etc.) doesn't apply here.
 
 pub mod device;
-pub mod h264_parser;
 pub mod instance;
 pub mod physical_device;
 pub mod sys;
