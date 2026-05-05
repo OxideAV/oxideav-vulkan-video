@@ -1,12 +1,19 @@
 # oxideav-vulkan-video
 
-Linux Vulkan Video hardware decode/encode bridge for the [oxideav](https://github.com/OxideAV/oxideav) framework.
+Vulkan Video hardware decode/encode bridge for the [oxideav](https://github.com/OxideAV/oxideav) framework. Builds on **Linux and Windows**.
 
 ## Why a bridge crate?
 
-The Vulkan Video extension family (`VK_KHR_video_queue`, `VK_KHR_video_decode_h264`, `VK_KHR_video_decode_h265`, `VK_KHR_video_decode_av1`, `VK_KHR_video_encode_*`) is the **vendor-neutral** path forward for HW acceleration on Linux. Unlike VA-API (Intel/AMD-leaning) and NVENC (NVIDIA-only), Vulkan Video is implemented in the Vulkan ICD layer itself and is gradually shipping across all three major GPU vendors. As of 2025, decode is widely available; encode is rolling out.
+The Vulkan Video extension family (`VK_KHR_video_queue`, `VK_KHR_video_decode_h264`, `VK_KHR_video_decode_h265`, `VK_KHR_video_decode_av1`, `VK_KHR_video_encode_*`) is the **vendor- and OS-neutral** path forward for HW acceleration. Unlike VA-API (Intel/AMD-leaning, Linux-only) and NVENC (NVIDIA-only), Vulkan Video is implemented in the Vulkan ICD layer itself and is gradually shipping across all three major GPU vendors on both Linux and Windows. As of 2025, decode is widely available; encode is rolling out.
 
-This crate is a **thin runtime-loaded bridge** — no compile-time link dependency on the Vulkan loader or any vendor ICD. `libvulkan.so.1` is opened via [`libloading`] on first use.
+This crate is a **thin runtime-loaded bridge** — no compile-time link dependency on the Vulkan loader or any vendor ICD. The loader is opened via [`libloading`] on first use:
+
+| Platform | Loader filename |
+|----------|-----------------|
+| Linux    | `libvulkan.so.1` |
+| Windows  | `vulkan-1.dll`   |
+
+On Windows the loader is installed by the Vulkan SDK, by GPU driver packages (NVIDIA, AMD, Intel), and by Windows itself on recent builds.
 
 ## Programming model
 
@@ -23,14 +30,14 @@ Round 2 will use these to construct a `VkInstance`, query for `VK_KHR_video_*` e
 
 Two distinct failure paths fall back automatically to the pure-Rust codec:
 
-1. **Load failure** — `libvulkan.so.1` not installed, no Vulkan ICD on the system (e.g. headless CI without Mesa or NVIDIA driver). `register()` logs and returns without registering.
+1. **Load failure** — Vulkan loader not installed, no Vulkan ICD on the system (e.g. headless Linux CI without Mesa, Windows host without GPU driver). `register()` logs and returns without registering.
 2. **Init failure** — `vkCreateInstance` succeeds but `vkEnumerateDeviceExtensionProperties` reports the requested `VK_KHR_video_*` extension is unsupported by every available `VkPhysicalDevice`, or the queue family for video-decode/encode operations is missing. The factory returns `Err`; the registry falls back to the next-priority impl.
 
 Pipelines that **require** hardware can opt out of the SW fallback by setting `CodecPreferences { require_hardware: true, .. }`.
 
 ## Platform gating
 
-The whole crate is `#![cfg(target_os = "linux")]`. On macOS / Windows it compiles to an empty rlib; the umbrella `oxideav` crate gates the `register` call behind the same cfg. (Vulkan Video is also available on Windows + macOS via MoltenVK, but cross-platform support is out of scope for Round 1.)
+The whole crate is `#![cfg(any(target_os = "linux", target_os = "windows"))]`. On macOS it compiles to an empty rlib; the umbrella `oxideav` crate gates the `register` call behind the same cfg. (Vulkan is reachable on macOS via MoltenVK but with a different loading story — out of scope for now.)
 
 ## Priority
 

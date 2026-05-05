@@ -6,9 +6,15 @@
 //!
 //! Library needed for the bridge:
 //!
-//! | Library          | Purpose                                       |
-//! |------------------|-----------------------------------------------|
-//! | libvulkan.so.1   | the Vulkan loader (`vkGetInstanceProcAddr`, …) |
+//! | Platform | Library                                           |
+//! |----------|---------------------------------------------------|
+//! | Linux    | `libvulkan.so.1`                                  |
+//! | Windows  | `vulkan-1.dll` (the Khronos / LunarG loader DLL)  |
+//!
+//! On Windows the loader is installed by the Vulkan SDK, by GPU
+//! driver packages (NVIDIA, AMD, Intel), and by Windows itself on
+//! recent builds — same dlopen story as the Linux side, just a
+//! different filename.
 //!
 //! Vulkan's bootstrap is four symbols. Every other Vulkan function
 //! (including the entire `VK_KHR_video_*` extension family) is
@@ -137,14 +143,25 @@ pub fn framework() -> Result<&'static FrameworkSmoke, &'static str> {
         .map_err(|s| s.as_str())
 }
 
+/// Per-platform soname / dll filename for the Vulkan loader.
+///
+/// Linux uses `libvulkan.so.1` (the SONAME shipped by the Khronos
+/// loader and by every distro package). Windows uses `vulkan-1.dll`
+/// (the standard filename installed by the Vulkan SDK, by GPU
+/// drivers, and by Windows itself on recent builds).
+#[cfg(target_os = "linux")]
+const VULKAN_LIBRARY: &str = "libvulkan.so.1";
+#[cfg(target_os = "windows")]
+const VULKAN_LIBRARY: &str = "vulkan-1.dll";
+
 fn load_smoke() -> Result<FrameworkSmoke, String> {
     Ok(FrameworkSmoke {
-        libvulkan: open("libvulkan.so.1")?,
+        libvulkan: open(VULKAN_LIBRARY)?,
     })
 }
 
 fn load_vtable() -> Result<Vtable, String> {
-    let libvulkan = open("libvulkan.so.1")?;
+    let libvulkan = open(VULKAN_LIBRARY)?;
 
     macro_rules! sym {
         ($lib:expr, $name:expr, $ty:ty) => {{

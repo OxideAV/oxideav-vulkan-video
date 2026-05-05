@@ -9,8 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial scaffolding: `#![cfg(target_os = "linux")]` crate that
-  dlopens `libvulkan.so.1` via `libloading` on first use.
+- Initial scaffolding: `#![cfg(any(target_os = "linux", target_os
+  = "windows"))]` crate that opens the Vulkan loader via
+  `libloading` on first use — `libvulkan.so.1` on Linux,
+  `vulkan-1.dll` on Windows.
 - `sys.rs` exposes opaque type aliases (`VkInstance`,
   `VkPhysicalDevice`, `VkDevice`, `VkQueue`, `VkResult`) and a
   resolved `Vtable` covering the four bootstrap symbols Vulkan
@@ -34,5 +36,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `oxideav-core` + `linkme` deps.
 - README coverage roadmap and priority explanation.
 - Smoke tests: `frameworks_load` and `vtable_resolves` confirm
-  symbol resolution on Linux machines that have a Vulkan loader
-  installed.
+  symbol resolution on any Linux or Windows machine that has a
+  Vulkan loader installed.

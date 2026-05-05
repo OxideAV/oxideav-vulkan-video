@@ -1,22 +1,26 @@
-#![cfg(target_os = "linux")]
-//! Linux Vulkan Video hardware decode/encode bridge.
+#![cfg(any(target_os = "linux", target_os = "windows"))]
+//! Vulkan Video hardware decode/encode bridge (Linux + Windows).
 //!
-//! This crate is a **runtime-loaded** bridge to the Vulkan loader
-//! (`libvulkan.so.1`). It uses [`libloading`] to dlopen the loader on
-//! first use, so:
+//! This crate is a **runtime-loaded** bridge to the Vulkan loader:
+//! `libvulkan.so.1` on Linux, `vulkan-1.dll` on Windows. It uses
+//! [`libloading`] to dlopen / `LoadLibrary` the loader on first use,
+//! so:
 //!
-//! * Linux builds have **no compile-time link dependency** on Vulkan;
-//!   if the loader can't be loaded (no Vulkan ICD installed, headless
-//!   CI without Mesa, etc.) the registered factories return
-//!   `Error::Unsupported` and the framework registry falls back to
-//!   the pure-Rust codec implementation.
+//! * Builds have **no compile-time link dependency** on Vulkan; if
+//!   the loader can't be loaded (no Vulkan ICD installed, headless
+//!   CI without Mesa, Windows host without GPU driver, etc.) the
+//!   registered factories return `Error::Unsupported` and the
+//!   framework registry falls back to the pure-Rust codec
+//!   implementation.
 //! * No bindgen, no `*-sys` crate. Vulkan is a C API; symbol
 //!   resolution and `VkResult` propagation is all done by hand.
 //!
-//! The crate is gated to `cfg(target_os = "linux")` at the source
-//! level: on macOS / Windows the entire crate compiles to an empty
-//! rlib, and consumers (umbrella `oxideav`) gate the `register` call
-//! behind the same cfg.
+//! The crate is gated to `cfg(any(target_os = "linux", target_os =
+//! "windows"))` at the source level: on macOS the entire crate
+//! compiles to an empty rlib (Vulkan is reachable via MoltenVK there
+//! but with a different loading story; out of scope for now), and
+//! consumers (umbrella `oxideav`) gate the `register` call behind
+//! the same cfg.
 //!
 //! # Programming model
 //!
