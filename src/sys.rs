@@ -314,6 +314,13 @@ pub const VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT: VkFlags = 0x00000002;
 /// `VK_MEMORY_PROPERTY_HOST_COHERENT_BIT = 0x4`.
 pub const VK_MEMORY_PROPERTY_HOST_COHERENT_BIT: VkFlags = 0x00000004;
 
+/// `VK_MEMORY_HEAP_DEVICE_LOCAL_BIT = 0x1` — flag set on a
+/// `VkMemoryHeap` whose storage is on the device (discrete VRAM, or
+/// the integrated GPU's slice of system RAM). Used by `engine_info()`
+/// to compute on-card memory: sum of every heap whose `flags`
+/// includes this bit.
+pub const VK_MEMORY_HEAP_DEVICE_LOCAL_BIT: VkFlags = 0x00000001;
+
 // ─────────────────────────── Physical device type ─────────────────────────────
 
 pub const VK_PHYSICAL_DEVICE_TYPE_OTHER: VkPhysicalDeviceType = 0;

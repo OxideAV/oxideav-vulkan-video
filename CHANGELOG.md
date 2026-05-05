@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Round 6
+
+- New module `engine` exposing
+  `pub fn engine_info() -> Vec<oxideav_core::HwDeviceInfo>`. Opens an
+  ephemeral Vulkan instance (`VK_API_VERSION_1_2`, app name
+  `"oxideav-vulkan-video-engine-info"`), enumerates every physical
+  device the loader sees, and returns one `HwDeviceInfo` per device:
+  - `name` from `VkPhysicalDeviceProperties.deviceName`.
+  - `api_version` formatted as `"Vulkan {major}.{minor}.{patch}"`.
+  - `driver_version` formatted as `"0x{:08x}"` (vendor-specific
+    decoding is a follow-up).
+  - `total_memory_bytes` summed across every
+    `VkPhysicalDeviceMemoryProperties.memoryHeaps` entry whose flags
+    have `VK_MEMORY_HEAP_DEVICE_LOCAL_BIT` set.
+  - `extra` extras: `vendor_id` (`0x{:04x}`), `device_id`
+    (`0x{:04x}`), `device_type` (`discrete` / `integrated` /
+    `virtual` / `cpu` / `other`).
+  - `codecs`: per-codec `HwCodecCaps` entries derived from
+    `supports_video_extensions()`. H.264 caps go through
+    `query_video_decode_h264_capabilities` against the High profile
+    to populate `max_width` / `max_height` / `max_dpb_slots` /
+    `max_active_reference_pictures` / `max_level_idc` /
+    `std_header_version` (e.g. `"1.0.0"`). HEVC and AV1 surface a
+    `decode: true` flag plus `max_bit_depth: 8` — the matching
+    H.265 / AV1 capability-query plumbing isn't wired into `sys.rs`
+    yet, so dimensions stay `None`.
+- The H.264 `CodecInfo` registered by `register()` now chains
+  `.with_engine_id("vulkan-video").with_engine_probe(engine_info)` so
+  the framework's CLI `info` command can call the probe on demand.
+- New constant `sys::VK_MEMORY_HEAP_DEVICE_LOCAL_BIT = 0x1` next to
+  the existing memory-property bits, used by the heap-size sum.
+- New integration test `tests/round6_engine_info.rs` —
+  `engine_info_finds_rtx_5080_or_skips`,
+  `engine_info_per_device_metadata_is_consistent`,
+  `engine_info_attaches_via_with_engine_probe`. Skip-friendly when
+  no Vulkan ICD is installed; on the dev box (RTX 5080, driver
+  580.95.05) the test reports the GPU + Vulkan version + heap size
+  + per-codec caps including decoded H.264 max extent.
+- Skip-friendly behaviour: any error path during instance creation
+  or physical-device enumeration collapses to `vec![]`. Consumers
+  treat empty as "no Vulkan backend on this host" and fall back to
+  whatever pure-Rust path they have. Module is gated behind the
+  default-on `registry` feature (it consumes the
+  `oxideav_core::HwDeviceInfo` type), matching `decoder.rs` and
+  `register()`.
+
 ### Changed — Round 5
 
 - Migrated H.264 parser to `oxideav-bitstream`. The crate-local

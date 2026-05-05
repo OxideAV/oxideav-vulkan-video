@@ -62,10 +62,16 @@ pub mod video;
 #[cfg(feature = "registry")]
 pub mod decoder;
 
+#[cfg(feature = "registry")]
+pub mod engine;
+
 pub use device::{Device, Queue};
 pub use instance::{Instance, VkError};
 pub use physical_device::{PhysicalDevice, PhysicalDeviceProperties, VideoExtensionSupport};
 pub use video::{query_video_decode_h264_capabilities, VideoDecodeH264Capabilities, VideoSession};
+
+#[cfg(feature = "registry")]
+pub use engine::engine_info;
 
 /// Register Vulkan Video decode factories (Round 4).
 ///
@@ -110,7 +116,9 @@ pub fn register(ctx: &mut oxideav_core::RuntimeContext) {
                 CodecTag::fourcc(b"avc1"),
                 CodecTag::fourcc(b"X264"),
                 CodecTag::matroska("V_MPEG4/ISO/AVC"),
-            ]),
+            ])
+            .with_engine_id("vulkan-video")
+            .with_engine_probe(engine::engine_info),
     );
 }
 
