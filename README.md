@@ -24,7 +24,7 @@ Vulkan is unusual in that **only `vkGetInstanceProcAddr` is meaningfully resolve
 * `vkEnumerateInstanceExtensionProperties`
 * `vkEnumerateInstanceVersion`
 
-Round 2 will use these to construct a `VkInstance`, query for `VK_KHR_video_*` extension support, and resolve every other Vulkan entry through `vkGetInstanceProcAddr` / `vkGetDeviceProcAddr`.
+As of Round 2, the crate uses these to construct a `VkInstance`, enumerate physical devices, and probe the `VK_KHR_video_*` extension family. Every other Vulkan entry is resolved on demand through `vkGetInstanceProcAddr` / `vkGetDeviceProcAddr`.
 
 ## Fallback behaviour
 
@@ -56,7 +56,7 @@ Hardware factories register with `CodecCapabilities::with_priority(20)` — slig
 | AV1          | planned (vendor support varies) | planned |
 | VP9          | — | — |
 
-Round 1 (this commit): scaffolding only. The crate dlopens `libvulkan.so.1`, resolves the four bootstrap symbols listed above, and exposes a `register(&mut RuntimeContext)` entry point that confirms the loader loads without registering any codec factories yet. Round 2: instance + physical-device enumeration + extension probing + first decode codec.
+Round 2 (this commit): the bootstrap → `VkInstance` → `VkPhysicalDevice` → `VK_KHR_video_*` extension probe path is plumbed end-to-end. `Instance::new("oxideav-vulkan-video-test", VK_API_VERSION_1_2)` calls `vkCreateInstance`, resolves the post-bootstrap function pointers through `vkGetInstanceProcAddr`, and exposes safe wrappers for `vkEnumeratePhysicalDevices`, `vkGetPhysicalDeviceProperties`, `vkEnumerateDeviceExtensionProperties`, and `vkGetPhysicalDeviceQueueFamilyProperties2` (the `_2` form gives a `pNext` chain into `VkQueueFamilyVideoPropertiesKHR`). `PhysicalDevice::supports_video_extensions()` returns a per-codec bool summary (queue_khr, decode_h264, decode_h265, decode_av1, encode_h264, encode_h265). Verified on an NVIDIA RTX 5080 with driver 580.95.05 in `tests/round2_init.rs`: every codec extension above is advertised and 2 queue families carry `VK_QUEUE_VIDEO_DECODE_BIT_KHR` / `VK_QUEUE_VIDEO_ENCODE_BIT_KHR`. `register()` remains a graceful no-op — Round 3 will layer the first decode session (H.264 / HEVC) on top.
 
 ## Workspace policy
 

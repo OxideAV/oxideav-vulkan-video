@@ -36,10 +36,13 @@
 //!
 //! # Status
 //!
-//! Round 1 (this commit): scaffolding only. The framework load is
-//! verified via `sys::framework()`; no codec factories are wired up
-//! yet. Round 2 will create a `VkInstance`, query the
-//! `VK_KHR_video_*` extension family, and add H.264 + HEVC decode.
+//! Round 2 (this commit): the bootstrap → `VkInstance` →
+//! `VkPhysicalDevice` → `VK_KHR_video_*` extension probe path is
+//! plumbed end-to-end via the safe wrappers in
+//! [`instance::Instance`] and [`physical_device::PhysicalDevice`].
+//! `register()` remains a graceful no-op — no codec factories are
+//! wired up yet. Round 3 will add the first decode session
+//! (H.264 / HEVC) layered on top.
 //!
 //! # Workspace policy
 //!
@@ -48,10 +51,15 @@
 //! algorithm. The workspace's clean-room rule (no embedding source
 //! from libvpx, libwebp, libjxl, etc.) doesn't apply here.
 
+pub mod instance;
+pub mod physical_device;
 pub mod sys;
 
+pub use instance::{Instance, VkError};
+pub use physical_device::{PhysicalDevice, PhysicalDeviceProperties, VideoExtensionSupport};
+
 /// Confirm the Vulkan loader loads, but do not register any codec
-/// factories yet (Round 1 scaffolding).
+/// factories yet (Round 2 still defers registration).
 ///
 /// If `libvulkan.so.1` cannot be loaded (no Vulkan ICD, headless CI
 /// without Mesa, etc.) the function logs and returns — the runtime
@@ -60,7 +68,8 @@ pub mod sys;
 pub fn register(_ctx: &mut oxideav_core::RuntimeContext) {
     match sys::framework() {
         Ok(_) => {
-            // Round 1: framework loads. No factories wired up yet.
+            // Round 2: framework loads + safe instance/physical-device
+            // wrappers exist; no codec factories yet.
         }
         Err(e) => {
             eprintln!("oxideav-vulkan-video: library unavailable, skipping registration: {e}");
