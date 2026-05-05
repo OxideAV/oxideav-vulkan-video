@@ -39,3 +39,13 @@ default = ["registry"]
 # registry. Default-on; turn off for tooling that just wants the raw
 # Vulkan Video bridge bindings without the framework.
 registry = ["dep:oxideav-core", "dep:linkme"]
+
+# Helper binary used by the Round 4 integration test to attempt the
+# full H.264 decode pipeline in a fork-isolated subprocess (so a
+# driver-side SIGSEGV during `vkQueueSubmit` doesn't bring down the
+# parent test runner). Built only when the `registry` feature is
+# enabled (which pulls `oxideav-core`).
+[[bin]]
+name = "round4_decode_helper"
+path = "tests/bin/round4_decode_helper.rs"
+required-features = ["registry"]

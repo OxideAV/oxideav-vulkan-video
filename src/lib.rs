@@ -54,33 +54,65 @@
 //! from libvpx, libwebp, libjxl, etc.) doesn't apply here.
 
 pub mod device;
+pub mod h264_parser;
 pub mod instance;
 pub mod physical_device;
 pub mod sys;
 pub mod video;
+
+#[cfg(feature = "registry")]
+pub mod decoder;
 
 pub use device::{Device, Queue};
 pub use instance::{Instance, VkError};
 pub use physical_device::{PhysicalDevice, PhysicalDeviceProperties, VideoExtensionSupport};
 pub use video::{query_video_decode_h264_capabilities, VideoDecodeH264Capabilities, VideoSession};
 
-/// Confirm the Vulkan loader loads, but do not register any codec
-/// factories yet (Round 2 still defers registration).
+/// Register Vulkan Video decode factories (Round 4).
 ///
-/// If `libvulkan.so.1` cannot be loaded (no Vulkan ICD, headless CI
-/// without Mesa, etc.) the function logs and returns — the runtime
-/// falls back to the pure-Rust impls.
+/// On hosts where the Vulkan loader cannot be opened — no ICD
+/// installed, headless CI without Mesa, Windows host without GPU
+/// drivers, etc. — the function logs and returns without registering
+/// anything; the framework's pure-Rust H.264 path remains the only
+/// resolution candidate.
+///
+/// The H.264 decoder factory is registered with priority 20 so it
+/// takes precedence over the pure-Rust path (priority 0) but defers
+/// to a hypothetical higher-priority hardware bridge if one is added
+/// later. The factory itself surfaces `Error::Unsupported` if the
+/// Vulkan device disagrees at runtime, so the registry will fall back
+/// to the next implementation.
 #[cfg(feature = "registry")]
-pub fn register(_ctx: &mut oxideav_core::RuntimeContext) {
+pub fn register(ctx: &mut oxideav_core::RuntimeContext) {
+    use oxideav_core::{CodecCapabilities, CodecId, CodecInfo, CodecTag};
+
     match sys::framework() {
-        Ok(_) => {
-            // Round 2: framework loads + safe instance/physical-device
-            // wrappers exist; no codec factories yet.
-        }
+        Ok(_) => {}
         Err(e) => {
             eprintln!("oxideav-vulkan-video: library unavailable, skipping registration: {e}");
+            return;
         }
     }
+
+    let h264_caps = CodecCapabilities::video("h264_vulkan")
+        .with_lossy(true)
+        .with_intra_only(false)
+        .with_hardware(true)
+        .with_priority(20);
+
+    ctx.codecs.register(
+        CodecInfo::new(CodecId::new("h264"))
+            .capabilities(h264_caps.with_decode())
+            .decoder(decoder::H264VkDecoder::make)
+            .tags([
+                CodecTag::fourcc(b"H264"),
+                CodecTag::fourcc(b"h264"),
+                CodecTag::fourcc(b"AVC1"),
+                CodecTag::fourcc(b"avc1"),
+                CodecTag::fourcc(b"X264"),
+                CodecTag::matroska("V_MPEG4/ISO/AVC"),
+            ]),
+    );
 }
 
 #[cfg(feature = "registry")]
