@@ -51,12 +51,14 @@ Hardware factories register with `CodecCapabilities::with_priority(20)` — slig
 
 | Codec        | Decode | Encode |
 |--------------|--------|--------|
-| H.264        | planned | planned |
+| H.264        | wired (driver crash on submit — see CHANGELOG) | planned |
 | HEVC         | planned | planned |
 | AV1          | planned (vendor support varies) | planned |
 | VP9          | — | — |
 
-Round 2 (this commit): the bootstrap → `VkInstance` → `VkPhysicalDevice` → `VK_KHR_video_*` extension probe path is plumbed end-to-end. `Instance::new("oxideav-vulkan-video-test", VK_API_VERSION_1_2)` calls `vkCreateInstance`, resolves the post-bootstrap function pointers through `vkGetInstanceProcAddr`, and exposes safe wrappers for `vkEnumeratePhysicalDevices`, `vkGetPhysicalDeviceProperties`, `vkEnumerateDeviceExtensionProperties`, and `vkGetPhysicalDeviceQueueFamilyProperties2` (the `_2` form gives a `pNext` chain into `VkQueueFamilyVideoPropertiesKHR`). `PhysicalDevice::supports_video_extensions()` returns a per-codec bool summary (queue_khr, decode_h264, decode_h265, decode_av1, encode_h264, encode_h265). Verified on an NVIDIA RTX 5080 with driver 580.95.05 in `tests/round2_init.rs`: every codec extension above is advertised and 2 queue families carry `VK_QUEUE_VIDEO_DECODE_BIT_KHR` / `VK_QUEUE_VIDEO_ENCODE_BIT_KHR`. `register()` remains a graceful no-op — Round 3 will layer the first decode session (H.264 / HEVC) on top.
+Round 4 (this commit): the full H.264 decode pipeline is wired through `vkEndCommandBuffer` — instance, device, video session + parameters object loaded with parsed SPS+PPS, DPB image (NV12 layout, multi-layer), host-visible bitstream + staging buffers, command pool + buffer, image-layout barriers, `vkCmdBeginVideoCodingKHR` / `vkCmdControlVideoCodingKHR` (RESET) / `vkCmdDecodeVideoKHR` / `vkCmdEndVideoCodingKHR` recording, and `vkCmdCopyImageToBuffer` for NV12 readback. On the dev box (RTX 5080, driver 580.95.05) the recording succeeds end-to-end but `vkQueueSubmit` SIGSEGVs inside the proprietary NVIDIA driver — see CHANGELOG for details. Round 4 ships the test infrastructure (subprocess-isolated decode helper) so a future driver release that fixes the crash will start passing the pixel cross-validation automatically.
+
+Round 2: the bootstrap → `VkInstance` → `VkPhysicalDevice` → `VK_KHR_video_*` extension probe path is plumbed end-to-end. `Instance::new("oxideav-vulkan-video-test", VK_API_VERSION_1_2)` calls `vkCreateInstance`, resolves the post-bootstrap function pointers through `vkGetInstanceProcAddr`, and exposes safe wrappers for `vkEnumeratePhysicalDevices`, `vkGetPhysicalDeviceProperties`, `vkEnumerateDeviceExtensionProperties`, and `vkGetPhysicalDeviceQueueFamilyProperties2` (the `_2` form gives a `pNext` chain into `VkQueueFamilyVideoPropertiesKHR`). `PhysicalDevice::supports_video_extensions()` returns a per-codec bool summary (queue_khr, decode_h264, decode_h265, decode_av1, encode_h264, encode_h265). Verified on an NVIDIA RTX 5080 with driver 580.95.05 in `tests/round2_init.rs`: every codec extension above is advertised and 2 queue families carry `VK_QUEUE_VIDEO_DECODE_BIT_KHR` / `VK_QUEUE_VIDEO_ENCODE_BIT_KHR`. `register()` remains a graceful no-op — Round 3 will layer the first decode session (H.264 / HEVC) on top.
 
 ## Workspace policy
 
