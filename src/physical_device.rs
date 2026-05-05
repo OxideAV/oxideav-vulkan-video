@@ -123,6 +123,14 @@ impl<'instance> PhysicalDevice<'instance> {
         self.handle
     }
 
+    /// Crate-internal: borrow the parent instance's dispatch table.
+    /// Used by [`crate::Device::new`] (which needs `vkCreateDevice` +
+    /// `vkGetInstanceProcAddr`) and [`crate::video`] (memory-type
+    /// lookup, video-capability query).
+    pub(crate) fn instance_fns(&self) -> &'instance InstanceFns {
+        self.fns
+    }
+
     /// Pull the (Vulkan 1.0) properties record. The driver fills the
     /// large `VkPhysicalDeviceProperties` struct on the stack here;
     /// we copy out only the fields oxideav cares about and drop the

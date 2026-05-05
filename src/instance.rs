@@ -23,9 +23,10 @@ use std::ptr;
 
 use crate::physical_device::PhysicalDevice;
 use crate::sys::{
-    self, FnVkDestroyInstance, FnVkEnumerateDeviceExtensionProperties,
-    FnVkEnumeratePhysicalDevices, FnVkGetPhysicalDeviceProperties,
-    FnVkGetPhysicalDeviceQueueFamilyProperties2, VkApplicationInfo, VkInstance, VkInstanceCreateInfo,
+    self, FnVkCreateDevice, FnVkDestroyInstance, FnVkEnumerateDeviceExtensionProperties,
+    FnVkEnumeratePhysicalDevices, FnVkGetDeviceProcAddr, FnVkGetPhysicalDeviceMemoryProperties,
+    FnVkGetPhysicalDeviceProperties, FnVkGetPhysicalDeviceQueueFamilyProperties2,
+    FnVkGetPhysicalDeviceVideoCapabilitiesKHR, VkApplicationInfo, VkInstance, VkInstanceCreateInfo,
     VkResult, VK_API_VERSION_1_0, VK_STRUCTURE_TYPE_APPLICATION_INFO,
     VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, VK_SUCCESS,
 };
@@ -86,12 +87,33 @@ pub struct Instance {
 /// `inst.fns.enumerate_physical_devices(...)` with no indirection
 /// beyond the function-pointer call itself.
 pub(crate) struct InstanceFns {
+    /// Underlying `vkGetInstanceProcAddr`. Cached on the instance so
+    /// `Device::new` and future rounds can resolve additional
+    /// dispatch entries without re-walking `sys::vtable()`.
+    #[allow(dead_code)]
+    pub(crate) get_instance_proc_addr: sys::FnVkGetInstanceProcAddr,
+    /// `vkGetDeviceProcAddr` — resolved against the instance via
+    /// `vkGetInstanceProcAddr` (the spec requires the instance form
+    /// for this entry; the null-instance form returns NULL on most
+    /// loaders). Stashed here so `Device::new` doesn't have to
+    /// re-resolve.
+    pub(crate) get_device_proc_addr: FnVkGetDeviceProcAddr,
     pub(crate) destroy_instance: FnVkDestroyInstance,
     pub(crate) enumerate_physical_devices: FnVkEnumeratePhysicalDevices,
     pub(crate) get_physical_device_properties: FnVkGetPhysicalDeviceProperties,
     pub(crate) enumerate_device_extension_properties: FnVkEnumerateDeviceExtensionProperties,
     pub(crate) get_physical_device_queue_family_properties2:
         FnVkGetPhysicalDeviceQueueFamilyProperties2,
+    pub(crate) get_physical_device_memory_properties: FnVkGetPhysicalDeviceMemoryProperties,
+    pub(crate) create_device: FnVkCreateDevice,
+    /// `vkGetPhysicalDeviceVideoCapabilitiesKHR` — Optional. The
+    /// extension is required for any of the video work in Round 3+;
+    /// when the loader's ICD set doesn't expose it (no
+    /// `VK_KHR_video_queue` available) the instance still loads but
+    /// the field is `None` and calls into video.rs return
+    /// `VkError::MissingFunction`.
+    pub(crate) get_physical_device_video_capabilities_khr:
+        Option<FnVkGetPhysicalDeviceVideoCapabilitiesKHR>,
 }
 
 impl Instance {
@@ -243,7 +265,21 @@ impl InstanceFns {
         // for retrieving instance-level function pointers; the cast
         // matches the spec-declared signature for each name.
         unsafe {
+            // `vkGetPhysicalDeviceVideoCapabilitiesKHR` is the only
+            // optional resolution — the function is part of
+            // `VK_KHR_video_queue` and may be absent on a Vulkan
+            // loader that doesn't expose any video extension. We
+            // probe it here and stash the result so `video.rs`
+            // doesn't have to re-resolve.
+            let video_caps = load_fn_optional(
+                get_proc,
+                instance,
+                b"vkGetPhysicalDeviceVideoCapabilitiesKHR\0",
+            );
+
             Ok(Self {
+                get_instance_proc_addr: get_proc,
+                get_device_proc_addr: load_fn(get_proc, instance, b"vkGetDeviceProcAddr\0")?,
                 destroy_instance: load_fn(get_proc, instance, b"vkDestroyInstance\0")?,
                 enumerate_physical_devices: load_fn(
                     get_proc,
@@ -265,6 +301,13 @@ impl InstanceFns {
                     instance,
                     b"vkGetPhysicalDeviceQueueFamilyProperties2\0",
                 )?,
+                get_physical_device_memory_properties: load_fn(
+                    get_proc,
+                    instance,
+                    b"vkGetPhysicalDeviceMemoryProperties\0",
+                )?,
+                create_device: load_fn(get_proc, instance, b"vkCreateDevice\0")?,
+                get_physical_device_video_capabilities_khr: video_caps,
             })
         }
     }
@@ -295,5 +338,50 @@ unsafe fn load_fn<Fp: Copy>(
     let f = raw.ok_or(VkError::MissingFunction(static_name))?;
     // SAFETY: caller documents that Fp matches the function being
     // resolved; sizes are checked at compile time.
+    Ok(unsafe { std::mem::transmute_copy::<unsafe extern "C" fn(), Fp>(&f) })
+}
+
+/// Like [`load_fn`] but returns `None` when `vkGetInstanceProcAddr`
+/// reports the function is not present. Used for extension entries
+/// that may not be exposed by the loader's ICD set.
+///
+/// # Safety
+/// Same `Fp`-shape contract as [`load_fn`].
+unsafe fn load_fn_optional<Fp: Copy>(
+    get_proc: sys::FnVkGetInstanceProcAddr,
+    instance: VkInstance,
+    name: &'static [u8],
+) -> Option<Fp> {
+    debug_assert!(name.last() == Some(&0));
+    // SAFETY: `vkGetInstanceProcAddr` accepts a NUL-terminated UTF-8
+    // pointer; null result is the "not present" signal.
+    let raw = unsafe { get_proc(instance, name.as_ptr() as *const c_char) };
+    let f = raw?;
+    // SAFETY: caller documents `Fp` matches the resolved function.
+    Some(unsafe { std::mem::transmute_copy::<unsafe extern "C" fn(), Fp>(&f) })
+}
+
+/// Crate-internal helper: resolve a device-level entry through
+/// `vkGetDeviceProcAddr`. Mirrors [`load_fn`] but for the device
+/// dispatch surface.
+///
+/// # Safety
+/// `Fp` must match the spec-declared signature of `name`. `name` must
+/// be NUL-terminated.
+pub(crate) unsafe fn load_device_fn<Fp: Copy>(
+    get_proc: sys::FnVkGetDeviceProcAddr,
+    device: sys::VkDevice,
+    name: &'static [u8],
+) -> Result<Fp, VkError> {
+    debug_assert!(name.last() == Some(&0));
+    let static_name = CStr::from_bytes_with_nul(name)
+        .expect("load_device_fn name must be NUL-terminated")
+        .to_str()
+        .expect("load_device_fn name must be ASCII");
+    // SAFETY: `vkGetDeviceProcAddr` is the documented device-dispatch
+    // entry; null result is "not present".
+    let raw = unsafe { get_proc(device, name.as_ptr() as *const c_char) };
+    let f = raw.ok_or(VkError::MissingFunction(static_name))?;
+    // SAFETY: caller documents that `Fp` matches the resolved function.
     Ok(unsafe { std::mem::transmute_copy::<unsafe extern "C" fn(), Fp>(&f) })
 }

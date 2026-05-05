@@ -36,13 +36,15 @@
 //!
 //! # Status
 //!
-//! Round 2 (this commit): the bootstrap → `VkInstance` →
-//! `VkPhysicalDevice` → `VK_KHR_video_*` extension probe path is
-//! plumbed end-to-end via the safe wrappers in
-//! [`instance::Instance`] and [`physical_device::PhysicalDevice`].
-//! `register()` remains a graceful no-op — no codec factories are
-//! wired up yet. Round 3 will add the first decode session
-//! (H.264 / HEVC) layered on top.
+//! Round 3 (this commit): adds [`device::Device`] (a logical
+//! `VkDevice` opened against a video-decode queue family) and
+//! [`video::VideoSession`] (a `VkVideoSessionKHR` with backing
+//! `VkDeviceMemory` bound through `vkBindVideoSessionMemoryKHR`).
+//! Capability queries for H.264 decode profiles are wired up via
+//! [`video::query_video_decode_h264_capabilities`]. `register()`
+//! remains a graceful no-op — actual decode-loop submission
+//! (`vkCmdBeginVideoCodingKHR` / `vkCmdDecodeVideoKHR` /
+//! `vkCmdEndVideoCodingKHR`) is Round 4 territory.
 //!
 //! # Workspace policy
 //!
@@ -51,12 +53,16 @@
 //! algorithm. The workspace's clean-room rule (no embedding source
 //! from libvpx, libwebp, libjxl, etc.) doesn't apply here.
 
+pub mod device;
 pub mod instance;
 pub mod physical_device;
 pub mod sys;
+pub mod video;
 
+pub use device::{Device, Queue};
 pub use instance::{Instance, VkError};
 pub use physical_device::{PhysicalDevice, PhysicalDeviceProperties, VideoExtensionSupport};
+pub use video::{query_video_decode_h264_capabilities, VideoDecodeH264Capabilities, VideoSession};
 
 /// Confirm the Vulkan loader loads, but do not register any codec
 /// factories yet (Round 2 still defers registration).

@@ -45,6 +45,19 @@ pub type VkDevice = *mut c_void;
 /// post-bootstrap).
 pub type VkQueue = *mut c_void;
 
+/// `VkVideoSessionKHR` — non-dispatchable handle returned by
+/// `vkCreateVideoSessionKHR`. The Khronos macro
+/// `VK_DEFINE_NON_DISPATCHABLE_HANDLE` resolves to a pointer-sized
+/// type on 64-bit targets (which is the only target we compile for —
+/// the `VK_USE_64_BIT_PTR_DEFINES` predicate in `vulkan_core.h` covers
+/// every 64-bit ABI). On 32-bit Vulkan would use a `uint64_t`; we
+/// don't support 32-bit Vulkan video.
+pub type VkVideoSessionKHR = *mut c_void;
+
+/// `VkDeviceMemory` — non-dispatchable handle returned by
+/// `vkAllocateMemory`. Same 64-bit caveat as `VkVideoSessionKHR`.
+pub type VkDeviceMemory = *mut c_void;
+
 /// VkResult — return code for almost every Vulkan entry point.
 pub type VkResult = i32;
 
@@ -68,6 +81,62 @@ pub type VkFlags = u32;
 /// (Vulkan 1.0 has no defined bits; portability subset adds one).
 pub type VkInstanceCreateFlags = VkFlags;
 
+/// `VkDeviceCreateFlags` — reserved bitmask in `VkDeviceCreateInfo`
+/// (no bits defined as of Vulkan 1.4).
+pub type VkDeviceCreateFlags = VkFlags;
+
+/// `VkDeviceQueueCreateFlags` — `VkDeviceQueueCreateInfo.flags`. The
+/// only defined bit at the time of writing is
+/// `VK_DEVICE_QUEUE_CREATE_PROTECTED_BIT = 0x1`; we don't use it.
+pub type VkDeviceQueueCreateFlags = VkFlags;
+
+/// `VkDeviceSize` — 64-bit unsigned for sizes / offsets on a device
+/// (memory allocations, buffer ranges, …).
+pub type VkDeviceSize = u64;
+
+/// `VkVideoCodecOperationFlagsKHR` — bitmask of supported codec ops
+/// (decode H.264 / H.265 / AV1 / VP9 and encode H.264 / H.265 / AV1).
+pub type VkVideoCodecOperationFlagsKHR = VkFlags;
+
+/// `VkVideoCodecOperationFlagBitsKHR` — single-bit form used in the
+/// profile struct (driver expects exactly one bit).
+pub type VkVideoCodecOperationFlagBitsKHR = VkFlags;
+
+/// `VkVideoChromaSubsamplingFlagsKHR` — bitmask of supported
+/// chroma subsampling modes (420 / 422 / 444 / monochrome).
+pub type VkVideoChromaSubsamplingFlagsKHR = VkFlags;
+
+/// `VkVideoComponentBitDepthFlagsKHR` — bitmask of supported
+/// component bit depths (8 / 10 / 12).
+pub type VkVideoComponentBitDepthFlagsKHR = VkFlags;
+
+/// `VkVideoCapabilityFlagsKHR` — `VkVideoCapabilitiesKHR.flags`.
+pub type VkVideoCapabilityFlagsKHR = VkFlags;
+
+/// `VkVideoDecodeCapabilityFlagsKHR` — `VkVideoDecodeCapabilitiesKHR.flags`.
+pub type VkVideoDecodeCapabilityFlagsKHR = VkFlags;
+
+/// `VkVideoSessionCreateFlagsKHR` — `VkVideoSessionCreateInfoKHR.flags`.
+pub type VkVideoSessionCreateFlagsKHR = VkFlags;
+
+/// `VkVideoDecodeH264PictureLayoutFlagBitsKHR` — picture layout for
+/// H.264 decode profile (progressive / interlaced).
+pub type VkVideoDecodeH264PictureLayoutFlagBitsKHR = VkFlags;
+
+/// `VkFormat` — pixel format / image format. Only the video decode
+/// output format is needed for Round 3.
+pub type VkFormat = i32;
+
+/// `StdVideoH264ProfileIdc` — 8-bit profile-IDC value carried in the
+/// H.264 SPS, modelled here as `i32` for the C-enum / VkFormat-style
+/// signed-int storage that the spec uses for `enum`-typed fields.
+pub type StdVideoH264ProfileIdc = i32;
+
+/// `StdVideoH264LevelIdc` — index into the level table. The
+/// numerical values are sequential (1.0=0, 1.1=1, …, 5.1=14, …) — see
+/// the constants below.
+pub type StdVideoH264LevelIdc = i32;
+
 /// `VkQueueFlags` — bitmask of the operations supported by a queue
 /// family. The bits we care about for video: `0x20` for decode and
 /// `0x40` for encode.
@@ -83,6 +152,12 @@ pub type VkPhysicalDeviceType = i32;
 
 pub const VK_STRUCTURE_TYPE_APPLICATION_INFO: VkStructureType = 0;
 pub const VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO: VkStructureType = 1;
+/// `VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO = 2`.
+pub const VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO: VkStructureType = 2;
+/// `VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO = 3`.
+pub const VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO: VkStructureType = 3;
+/// `VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO = 5`.
+pub const VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO: VkStructureType = 5;
 /// `VK_STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2 = 1000059005`. Set on
 /// the per-element `VkQueueFamilyProperties2` array passed in to
 /// `vkGetPhysicalDeviceQueueFamilyProperties2` so the implementation
@@ -93,6 +168,22 @@ pub const VK_STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2: VkStructureType = 1000059
 /// struct chained off `VkQueueFamilyProperties2.pNext` to retrieve the
 /// `videoCodecOperations` bitmask of supported codecs per queue family.
 pub const VK_STRUCTURE_TYPE_QUEUE_FAMILY_VIDEO_PROPERTIES_KHR: VkStructureType = 1000023012;
+/// `VK_STRUCTURE_TYPE_VIDEO_PROFILE_INFO_KHR = 1000023000`.
+pub const VK_STRUCTURE_TYPE_VIDEO_PROFILE_INFO_KHR: VkStructureType = 1000023000;
+/// `VK_STRUCTURE_TYPE_VIDEO_CAPABILITIES_KHR = 1000023001`.
+pub const VK_STRUCTURE_TYPE_VIDEO_CAPABILITIES_KHR: VkStructureType = 1000023001;
+/// `VK_STRUCTURE_TYPE_VIDEO_SESSION_MEMORY_REQUIREMENTS_KHR = 1000023003`.
+pub const VK_STRUCTURE_TYPE_VIDEO_SESSION_MEMORY_REQUIREMENTS_KHR: VkStructureType = 1000023003;
+/// `VK_STRUCTURE_TYPE_BIND_VIDEO_SESSION_MEMORY_INFO_KHR = 1000023004`.
+pub const VK_STRUCTURE_TYPE_BIND_VIDEO_SESSION_MEMORY_INFO_KHR: VkStructureType = 1000023004;
+/// `VK_STRUCTURE_TYPE_VIDEO_SESSION_CREATE_INFO_KHR = 1000023005`.
+pub const VK_STRUCTURE_TYPE_VIDEO_SESSION_CREATE_INFO_KHR: VkStructureType = 1000023005;
+/// `VK_STRUCTURE_TYPE_VIDEO_DECODE_CAPABILITIES_KHR = 1000024001`.
+pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_CAPABILITIES_KHR: VkStructureType = 1000024001;
+/// `VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_PROFILE_INFO_KHR = 1000040003`.
+pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_PROFILE_INFO_KHR: VkStructureType = 1000040003;
+/// `VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_CAPABILITIES_KHR = 1000040000`.
+pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_CAPABILITIES_KHR: VkStructureType = 1000040000;
 
 // ─────────────────────────── Queue flags ──────────────────────────────────────
 
@@ -112,6 +203,116 @@ pub const VK_QUEUE_VIDEO_DECODE_BIT_KHR: VkQueueFlags = 0x00000020;
 /// `VK_QUEUE_VIDEO_ENCODE_BIT_KHR = 0x40`. Indicates a queue family
 /// supports `vkCmdEncodeVideoKHR`-class operations.
 pub const VK_QUEUE_VIDEO_ENCODE_BIT_KHR: VkQueueFlags = 0x00000040;
+
+// ─────────────────────────── Video codec operation bits ──────────────────────
+
+/// `VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR = 0x1`.
+pub const VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR: VkVideoCodecOperationFlagBitsKHR =
+    0x00000001;
+/// `VK_VIDEO_CODEC_OPERATION_DECODE_H265_BIT_KHR = 0x2`.
+pub const VK_VIDEO_CODEC_OPERATION_DECODE_H265_BIT_KHR: VkVideoCodecOperationFlagBitsKHR =
+    0x00000002;
+/// `VK_VIDEO_CODEC_OPERATION_DECODE_AV1_BIT_KHR = 0x4`.
+pub const VK_VIDEO_CODEC_OPERATION_DECODE_AV1_BIT_KHR: VkVideoCodecOperationFlagBitsKHR =
+    0x00000004;
+/// `VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR = 0x10000`.
+pub const VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR: VkVideoCodecOperationFlagBitsKHR =
+    0x00010000;
+/// `VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR = 0x20000`.
+pub const VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR: VkVideoCodecOperationFlagBitsKHR =
+    0x00020000;
+
+// ─────────────────────────── Chroma subsampling / bit depth ──────────────────
+
+/// `VK_VIDEO_CHROMA_SUBSAMPLING_MONOCHROME_BIT_KHR = 0x1`.
+pub const VK_VIDEO_CHROMA_SUBSAMPLING_MONOCHROME_BIT_KHR: VkVideoChromaSubsamplingFlagsKHR =
+    0x00000001;
+/// `VK_VIDEO_CHROMA_SUBSAMPLING_420_BIT_KHR = 0x2`.
+pub const VK_VIDEO_CHROMA_SUBSAMPLING_420_BIT_KHR: VkVideoChromaSubsamplingFlagsKHR = 0x00000002;
+/// `VK_VIDEO_CHROMA_SUBSAMPLING_422_BIT_KHR = 0x4`.
+pub const VK_VIDEO_CHROMA_SUBSAMPLING_422_BIT_KHR: VkVideoChromaSubsamplingFlagsKHR = 0x00000004;
+/// `VK_VIDEO_CHROMA_SUBSAMPLING_444_BIT_KHR = 0x8`.
+pub const VK_VIDEO_CHROMA_SUBSAMPLING_444_BIT_KHR: VkVideoChromaSubsamplingFlagsKHR = 0x00000008;
+
+/// `VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR = 0x1`.
+pub const VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR: VkVideoComponentBitDepthFlagsKHR = 0x00000001;
+/// `VK_VIDEO_COMPONENT_BIT_DEPTH_10_BIT_KHR = 0x4`.
+pub const VK_VIDEO_COMPONENT_BIT_DEPTH_10_BIT_KHR: VkVideoComponentBitDepthFlagsKHR = 0x00000004;
+/// `VK_VIDEO_COMPONENT_BIT_DEPTH_12_BIT_KHR = 0x10`.
+pub const VK_VIDEO_COMPONENT_BIT_DEPTH_12_BIT_KHR: VkVideoComponentBitDepthFlagsKHR = 0x00000010;
+
+// ─────────────────────────── H.264 picture layout ────────────────────────────
+
+/// `VK_VIDEO_DECODE_H264_PICTURE_LAYOUT_PROGRESSIVE_KHR = 0`.
+pub const VK_VIDEO_DECODE_H264_PICTURE_LAYOUT_PROGRESSIVE_KHR:
+    VkVideoDecodeH264PictureLayoutFlagBitsKHR = 0;
+
+// ─────────────────────────── VkFormat (decode subset) ────────────────────────
+
+/// `VK_FORMAT_UNDEFINED = 0`.
+pub const VK_FORMAT_UNDEFINED: VkFormat = 0;
+/// `VK_FORMAT_G8_B8R8_2PLANE_420_UNORM = 1000156003` — NV12. The
+/// canonical 8-bit 4:2:0 two-plane format used by every Vulkan video
+/// decode implementation as the DPB/output format for H.264 / H.265
+/// 8-bit 4:2:0.
+pub const VK_FORMAT_G8_B8R8_2PLANE_420_UNORM: VkFormat = 1000156003;
+
+// ─────────────────────────── H.264 profile / level IDC values ────────────────
+//
+// These come from `vk_video/vulkan_video_codec_h264std.h` — the
+// Annex-A profile_idc byte values from the H.264 spec (66, 77, 100,
+// 244) and the contiguous level-table indices that
+// `StdVideoH264LevelIdc` uses (1.0 → 0, 1.1 → 1, …, 5.1 → 14, …, 6.2 → 18).
+
+/// `STD_VIDEO_H264_PROFILE_IDC_BASELINE = 66`.
+pub const STD_VIDEO_H264_PROFILE_IDC_BASELINE: StdVideoH264ProfileIdc = 66;
+/// `STD_VIDEO_H264_PROFILE_IDC_MAIN = 77`.
+pub const STD_VIDEO_H264_PROFILE_IDC_MAIN: StdVideoH264ProfileIdc = 77;
+/// `STD_VIDEO_H264_PROFILE_IDC_HIGH = 100`.
+pub const STD_VIDEO_H264_PROFILE_IDC_HIGH: StdVideoH264ProfileIdc = 100;
+/// `STD_VIDEO_H264_PROFILE_IDC_HIGH_444_PREDICTIVE = 244`.
+pub const STD_VIDEO_H264_PROFILE_IDC_HIGH_444_PREDICTIVE: StdVideoH264ProfileIdc = 244;
+
+/// `STD_VIDEO_H264_LEVEL_IDC_4_0 = 10`.
+pub const STD_VIDEO_H264_LEVEL_IDC_4_0: StdVideoH264LevelIdc = 10;
+/// `STD_VIDEO_H264_LEVEL_IDC_4_1 = 11`.
+pub const STD_VIDEO_H264_LEVEL_IDC_4_1: StdVideoH264LevelIdc = 11;
+/// `STD_VIDEO_H264_LEVEL_IDC_4_2 = 12`.
+pub const STD_VIDEO_H264_LEVEL_IDC_4_2: StdVideoH264LevelIdc = 12;
+/// `STD_VIDEO_H264_LEVEL_IDC_5_0 = 13`.
+pub const STD_VIDEO_H264_LEVEL_IDC_5_0: StdVideoH264LevelIdc = 13;
+/// `STD_VIDEO_H264_LEVEL_IDC_5_1 = 14`.
+pub const STD_VIDEO_H264_LEVEL_IDC_5_1: StdVideoH264LevelIdc = 14;
+/// `STD_VIDEO_H264_LEVEL_IDC_5_2 = 15`.
+pub const STD_VIDEO_H264_LEVEL_IDC_5_2: StdVideoH264LevelIdc = 15;
+/// `STD_VIDEO_H264_LEVEL_IDC_6_0 = 16`.
+pub const STD_VIDEO_H264_LEVEL_IDC_6_0: StdVideoH264LevelIdc = 16;
+/// `STD_VIDEO_H264_LEVEL_IDC_6_1 = 17`.
+pub const STD_VIDEO_H264_LEVEL_IDC_6_1: StdVideoH264LevelIdc = 17;
+/// `STD_VIDEO_H264_LEVEL_IDC_6_2 = 18`.
+pub const STD_VIDEO_H264_LEVEL_IDC_6_2: StdVideoH264LevelIdc = 18;
+
+// ─────────────────────────── H.264 decode std header version ─────────────────
+
+/// `VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_EXTENSION_NAME` —
+/// extension-name string carried in `VkVideoSessionCreateInfoKHR`'s
+/// `pStdHeaderVersion`.
+pub const VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_EXTENSION_NAME: &str =
+    "VK_STD_vulkan_video_codec_h264_decode";
+
+/// `VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_SPEC_VERSION` packed —
+/// `VK_MAKE_VIDEO_STD_VERSION(1, 0, 0)` ≡ `(1 << 22) | (0 << 12) | 0`.
+pub const VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_SPEC_VERSION: u32 = (1u32 << 22) | (0u32 << 12);
+
+// ─────────────────────────── Memory property bits ────────────────────────────
+
+/// `VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT = 0x1` — fast GPU memory.
+/// Every video decode session memory binding wants this.
+pub const VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT: VkFlags = 0x00000001;
+/// `VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT = 0x2`.
+pub const VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT: VkFlags = 0x00000002;
+/// `VK_MEMORY_PROPERTY_HOST_COHERENT_BIT = 0x4`.
+pub const VK_MEMORY_PROPERTY_HOST_COHERENT_BIT: VkFlags = 0x00000004;
 
 // ─────────────────────────── Physical device type ─────────────────────────────
 
@@ -266,6 +467,27 @@ pub struct VkInstanceCreateInfo {
 pub struct VkExtensionProperties {
     pub extension_name: [c_char; VK_MAX_EXTENSION_NAME_SIZE],
     pub spec_version: u32,
+}
+
+impl std::fmt::Debug for VkExtensionProperties {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Decode the NUL-terminated `extensionName` for human-readable
+        // debug output. `spec_version` is printed as the packed u32.
+        let nul = self
+            .extension_name
+            .iter()
+            .position(|&c| c == 0)
+            .unwrap_or(self.extension_name.len());
+        // SAFETY: bytes 0..nul are all non-NUL; the buffer is at least
+        // `nul + 1` bytes long.
+        let bytes =
+            unsafe { std::slice::from_raw_parts(self.extension_name.as_ptr() as *const u8, nul) };
+        let name = String::from_utf8_lossy(bytes);
+        f.debug_struct("VkExtensionProperties")
+            .field("extension_name", &name)
+            .field("spec_version", &self.spec_version)
+            .finish()
+    }
 }
 
 /// `VkPhysicalDeviceSparseProperties` — substruct nested inside
@@ -464,6 +686,231 @@ pub struct VkQueueFamilyVideoPropertiesKHR {
     pub video_codec_operations: VkFlags,
 }
 
+// ─────────────────────────── Geometry helpers ────────────────────────────────
+
+/// `VkExtent2D` — width/height pair used in
+/// `VkVideoCapabilitiesKHR.{minCodedExtent, maxCodedExtent,
+/// pictureAccessGranularity}` and `VkVideoSessionCreateInfoKHR.maxCodedExtent`.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct VkExtent2D {
+    pub width: u32,
+    pub height: u32,
+}
+
+/// `VkOffset2D` — signed-int x/y offset. The H.264 capabilities struct
+/// reports `fieldOffsetGranularity` as one of these.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct VkOffset2D {
+    pub x: i32,
+    pub y: i32,
+}
+
+// ─────────────────────────── Device + queue creation ─────────────────────────
+
+/// `VkDeviceQueueCreateInfo` — one entry per queue family the logical
+/// device wants queues from. We use a single entry with the video
+/// decode queue family.
+#[repr(C)]
+#[derive(Debug)]
+pub struct VkDeviceQueueCreateInfo {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub flags: VkDeviceQueueCreateFlags,
+    pub queue_family_index: u32,
+    pub queue_count: u32,
+    pub p_queue_priorities: *const f32,
+}
+
+/// `VkDeviceCreateInfo` — argument bundle for `vkCreateDevice`. The
+/// `enabled_layer_count` / `pp_enabled_layer_names` fields are
+/// deprecated (kept for ABI parity); we always set them to zero / null.
+#[repr(C)]
+#[derive(Debug)]
+pub struct VkDeviceCreateInfo {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub flags: VkDeviceCreateFlags,
+    pub queue_create_info_count: u32,
+    pub p_queue_create_infos: *const VkDeviceQueueCreateInfo,
+    pub enabled_layer_count: u32,
+    pub pp_enabled_layer_names: *const *const c_char,
+    pub enabled_extension_count: u32,
+    pub pp_enabled_extension_names: *const *const c_char,
+    pub p_enabled_features: *const c_void, // VkPhysicalDeviceFeatures, unused — pass null
+}
+
+// ─────────────────────────── Memory ──────────────────────────────────────────
+
+/// `VkMemoryHeap` — entry of `VkPhysicalDeviceMemoryProperties.memoryHeaps`.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct VkMemoryHeap {
+    pub size: VkDeviceSize,
+    pub flags: VkFlags,
+}
+
+/// `VkMemoryType` — entry of `VkPhysicalDeviceMemoryProperties.memoryTypes`.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct VkMemoryType {
+    pub property_flags: VkFlags,
+    pub heap_index: u32,
+}
+
+/// `VkPhysicalDeviceMemoryProperties` — the inline-sized table used by
+/// the Vulkan 1.0 `vkGetPhysicalDeviceMemoryProperties` entry.
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct VkPhysicalDeviceMemoryProperties {
+    pub memory_type_count: u32,
+    pub memory_types: [VkMemoryType; VK_MAX_MEMORY_TYPES],
+    pub memory_heap_count: u32,
+    pub memory_heaps: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS],
+}
+
+/// `VkMemoryRequirements` — emitted by every `vkGet*MemoryRequirements`
+/// entry. `memory_type_bits` is a bitmask over the implementation's
+/// memory type indices.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct VkMemoryRequirements {
+    pub size: VkDeviceSize,
+    pub alignment: VkDeviceSize,
+    pub memory_type_bits: u32,
+}
+
+/// `VkMemoryAllocateInfo` — argument to `vkAllocateMemory`.
+#[repr(C)]
+#[derive(Debug)]
+pub struct VkMemoryAllocateInfo {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub allocation_size: VkDeviceSize,
+    pub memory_type_index: u32,
+}
+
+// ─────────────────────────── Video profile / capabilities ────────────────────
+
+/// `VkVideoProfileInfoKHR` — single-codec-operation profile record
+/// passed to `vkGetPhysicalDeviceVideoCapabilitiesKHR` and
+/// (re-referenced from) `VkVideoSessionCreateInfoKHR.pVideoProfile`.
+/// Round 3 chains a `VkVideoDecodeH264ProfileInfoKHR` onto `pNext`.
+#[repr(C)]
+#[derive(Debug)]
+pub struct VkVideoProfileInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub video_codec_operation: VkVideoCodecOperationFlagBitsKHR,
+    pub chroma_subsampling: VkVideoChromaSubsamplingFlagsKHR,
+    pub luma_bit_depth: VkVideoComponentBitDepthFlagsKHR,
+    pub chroma_bit_depth: VkVideoComponentBitDepthFlagsKHR,
+}
+
+/// `VkVideoDecodeH264ProfileInfoKHR` — H.264-specific extension
+/// chained off `VkVideoProfileInfoKHR.pNext` to identify the H.264
+/// profile and field-picture handling.
+#[repr(C)]
+#[derive(Debug)]
+pub struct VkVideoDecodeH264ProfileInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub std_profile_idc: StdVideoH264ProfileIdc,
+    pub picture_layout: VkVideoDecodeH264PictureLayoutFlagBitsKHR,
+}
+
+/// `VkVideoCapabilitiesKHR` — output of
+/// `vkGetPhysicalDeviceVideoCapabilitiesKHR`. The `pNext` chain may
+/// carry `VkVideoDecodeCapabilitiesKHR` (which itself can be chained
+/// to `VkVideoDecodeH264CapabilitiesKHR`).
+#[repr(C)]
+pub struct VkVideoCapabilitiesKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *mut c_void,
+    pub flags: VkVideoCapabilityFlagsKHR,
+    pub min_bitstream_buffer_offset_alignment: VkDeviceSize,
+    pub min_bitstream_buffer_size_alignment: VkDeviceSize,
+    pub picture_access_granularity: VkExtent2D,
+    pub min_coded_extent: VkExtent2D,
+    pub max_coded_extent: VkExtent2D,
+    pub max_dpb_slots: u32,
+    pub max_active_reference_pictures: u32,
+    pub std_header_version: VkExtensionProperties,
+}
+
+/// `VkVideoDecodeCapabilitiesKHR` — chained off
+/// `VkVideoCapabilitiesKHR.pNext`. Reports the DPB / output coincide
+/// vs. distinct flag bits (we don't model the bits in Round 3 — the
+/// raw `flags` field is exposed unchanged).
+#[repr(C)]
+#[derive(Debug)]
+pub struct VkVideoDecodeCapabilitiesKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *mut c_void,
+    pub flags: VkVideoDecodeCapabilityFlagsKHR,
+}
+
+/// `VkVideoDecodeH264CapabilitiesKHR` — chained off
+/// `VkVideoDecodeCapabilitiesKHR.pNext`. Reports the H.264 profile-
+/// specific limits: max level IDC the device supports + the
+/// field-offset granularity for interlaced content.
+#[repr(C)]
+#[derive(Debug)]
+pub struct VkVideoDecodeH264CapabilitiesKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *mut c_void,
+    pub max_level_idc: StdVideoH264LevelIdc,
+    pub field_offset_granularity: VkOffset2D,
+}
+
+// ─────────────────────────── Video session create / memory ───────────────────
+
+/// `VkVideoSessionCreateInfoKHR` — argument bundle for
+/// `vkCreateVideoSessionKHR`. The session is bound to a single video
+/// decode queue family (`queue_family_index`) and a single profile.
+#[repr(C)]
+#[derive(Debug)]
+pub struct VkVideoSessionCreateInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub queue_family_index: u32,
+    pub flags: VkVideoSessionCreateFlagsKHR,
+    pub p_video_profile: *const VkVideoProfileInfoKHR,
+    pub picture_format: VkFormat,
+    pub max_coded_extent: VkExtent2D,
+    pub reference_picture_format: VkFormat,
+    pub max_dpb_slots: u32,
+    pub max_active_reference_pictures: u32,
+    pub p_std_header_version: *const VkExtensionProperties,
+}
+
+/// `VkVideoSessionMemoryRequirementsKHR` — emitted (one per memory
+/// bind index) by `vkGetVideoSessionMemoryRequirementsKHR`. The
+/// caller is responsible for allocating + binding memory that
+/// satisfies each entry.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct VkVideoSessionMemoryRequirementsKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *mut c_void,
+    pub memory_bind_index: u32,
+    pub memory_requirements: VkMemoryRequirements,
+}
+
+/// `VkBindVideoSessionMemoryInfoKHR` — input to
+/// `vkBindVideoSessionMemoryKHR`, one per bind index.
+#[repr(C)]
+#[derive(Debug)]
+pub struct VkBindVideoSessionMemoryInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub memory_bind_index: u32,
+    pub memory: VkDeviceMemory,
+    pub memory_offset: VkDeviceSize,
+    pub memory_size: VkDeviceSize,
+}
+
 // ─────────────────────────── Post-bootstrap function pointer types ────────────
 
 /// `vkDestroyInstance(instance, allocator)` — called from
@@ -507,6 +954,99 @@ pub type FnVkGetPhysicalDeviceQueueFamilyProperties2 = unsafe extern "C" fn(
     queue_family_property_count: *mut u32,
     queue_family_properties: *mut VkQueueFamilyProperties2,
 );
+
+/// `vkGetPhysicalDeviceMemoryProperties(physical_device, properties)` —
+/// Vulkan 1.0 entry returning the inline-sized memory-types/heaps
+/// table used to pick a memory type that satisfies a
+/// `VkMemoryRequirements`.
+pub type FnVkGetPhysicalDeviceMemoryProperties = unsafe extern "C" fn(
+    physical_device: VkPhysicalDevice,
+    memory_properties: *mut VkPhysicalDeviceMemoryProperties,
+);
+
+/// `vkGetPhysicalDeviceVideoCapabilitiesKHR(physical_device, profile,
+/// caps)` — extension entry that surfaces the implementation's
+/// per-profile codec capabilities (max coded extent, DPB slots,
+/// header version, …). Resolved through `vkGetInstanceProcAddr`.
+pub type FnVkGetPhysicalDeviceVideoCapabilitiesKHR = unsafe extern "C" fn(
+    physical_device: VkPhysicalDevice,
+    p_video_profile: *const VkVideoProfileInfoKHR,
+    p_capabilities: *mut VkVideoCapabilitiesKHR,
+) -> VkResult;
+
+/// `vkCreateDevice(physical_device, create_info, allocator, device)` —
+/// constructs a logical device (a `VkDevice`) from a physical device
+/// + queue/extension request bundle.
+pub type FnVkCreateDevice = unsafe extern "C" fn(
+    physical_device: VkPhysicalDevice,
+    p_create_info: *const VkDeviceCreateInfo,
+    p_allocator: *const c_void,
+    p_device: *mut VkDevice,
+) -> VkResult;
+
+/// `vkDestroyDevice(device, allocator)`.
+pub type FnVkDestroyDevice = unsafe extern "C" fn(device: VkDevice, p_allocator: *const c_void);
+
+/// `vkGetDeviceProcAddr(device, name)` — analogue of
+/// `vkGetInstanceProcAddr` for the device-level dispatch surface.
+pub type FnVkGetDeviceProcAddr =
+    unsafe extern "C" fn(device: VkDevice, name: *const c_char) -> PFN_vkVoidFunction;
+
+/// `vkGetDeviceQueue(device, queue_family_index, queue_index, queue)`.
+pub type FnVkGetDeviceQueue = unsafe extern "C" fn(
+    device: VkDevice,
+    queue_family_index: u32,
+    queue_index: u32,
+    p_queue: *mut VkQueue,
+);
+
+/// `vkAllocateMemory(device, allocate_info, allocator, memory)` —
+/// returns a fresh `VkDeviceMemory` from the implementation. We use
+/// it for the per-bind-index allocations driven by
+/// `vkGetVideoSessionMemoryRequirementsKHR`.
+pub type FnVkAllocateMemory = unsafe extern "C" fn(
+    device: VkDevice,
+    p_allocate_info: *const VkMemoryAllocateInfo,
+    p_allocator: *const c_void,
+    p_memory: *mut VkDeviceMemory,
+) -> VkResult;
+
+/// `vkFreeMemory(device, memory, allocator)`.
+pub type FnVkFreeMemory =
+    unsafe extern "C" fn(device: VkDevice, memory: VkDeviceMemory, p_allocator: *const c_void);
+
+/// `vkCreateVideoSessionKHR(device, create_info, allocator, session)`.
+pub type FnVkCreateVideoSessionKHR = unsafe extern "C" fn(
+    device: VkDevice,
+    p_create_info: *const VkVideoSessionCreateInfoKHR,
+    p_allocator: *const c_void,
+    p_video_session: *mut VkVideoSessionKHR,
+) -> VkResult;
+
+/// `vkDestroyVideoSessionKHR(device, session, allocator)`.
+pub type FnVkDestroyVideoSessionKHR = unsafe extern "C" fn(
+    device: VkDevice,
+    video_session: VkVideoSessionKHR,
+    p_allocator: *const c_void,
+);
+
+/// `vkGetVideoSessionMemoryRequirementsKHR(device, session, count,
+/// requirements)` — two-call pattern to enumerate the per-bind-index
+/// memory requirements of a video session.
+pub type FnVkGetVideoSessionMemoryRequirementsKHR = unsafe extern "C" fn(
+    device: VkDevice,
+    video_session: VkVideoSessionKHR,
+    p_memory_requirements_count: *mut u32,
+    p_memory_requirements: *mut VkVideoSessionMemoryRequirementsKHR,
+) -> VkResult;
+
+/// `vkBindVideoSessionMemoryKHR(device, session, count, infos)`.
+pub type FnVkBindVideoSessionMemoryKHR = unsafe extern "C" fn(
+    device: VkDevice,
+    video_session: VkVideoSessionKHR,
+    bind_session_memory_info_count: u32,
+    p_bind_session_memory_infos: *const VkBindVideoSessionMemoryInfoKHR,
+) -> VkResult;
 
 // ─────────────────────────── Vtable ───────────────────────────────────────────
 
