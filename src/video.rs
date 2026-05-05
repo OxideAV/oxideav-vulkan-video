@@ -81,6 +81,11 @@ pub struct VideoDecodeH264Capabilities {
     /// Decode-specific capability flags from
     /// `VkVideoDecodeCapabilitiesKHR.flags` (raw bits).
     pub decode_capability_flags: u32,
+    /// Bitstream-buffer offset alignment from
+    /// `VkVideoCapabilitiesKHR.min_bitstream_buffer_offset_alignment`.
+    pub min_bitstream_buffer_offset_alignment: u64,
+    /// Bitstream-buffer size alignment.
+    pub min_bitstream_buffer_size_alignment: u64,
 }
 
 /// Run `vkGetPhysicalDeviceVideoCapabilitiesKHR` for an H.264 decode
@@ -173,6 +178,8 @@ pub fn query_video_decode_h264_capabilities(
         std_header_version: caps.std_header_version,
         capability_flags: caps.flags,
         decode_capability_flags: decode_caps.flags,
+        min_bitstream_buffer_offset_alignment: caps.min_bitstream_buffer_offset_alignment,
+        min_bitstream_buffer_size_alignment: caps.min_bitstream_buffer_size_alignment,
     })
 }
 

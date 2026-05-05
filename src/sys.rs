@@ -389,6 +389,146 @@ pub const VK_MAX_MEMORY_HEAPS: usize = 16;
 #[allow(non_camel_case_types)]
 pub type PFN_vkVoidFunction = Option<unsafe extern "C" fn()>;
 
+// ─────────────────────────── Round 4 — non-dispatchable handles ──────────────
+
+/// `VkBuffer` — non-dispatchable handle (pointer-sized on 64-bit).
+pub type VkBuffer = *mut c_void;
+/// `VkImage` — non-dispatchable handle.
+pub type VkImage = *mut c_void;
+/// `VkImageView` — non-dispatchable handle.
+pub type VkImageView = *mut c_void;
+/// `VkCommandPool` — non-dispatchable handle.
+pub type VkCommandPool = *mut c_void;
+/// `VkCommandBuffer` — DISPATCHABLE handle (Vulkan defines this as a
+/// dispatchable handle, but we treat it the same as the
+/// non-dispatchable handles for our FFI purposes; the only point that
+/// matters in practice is that it's a pointer).
+pub type VkCommandBuffer = *mut c_void;
+/// `VkFence` — non-dispatchable handle.
+pub type VkFence = *mut c_void;
+/// `VkVideoSessionParametersKHR` — non-dispatchable handle returned by
+/// `vkCreateVideoSessionParametersKHR`.
+pub type VkVideoSessionParametersKHR = *mut c_void;
+
+// ─────────────────────────── Round 4 — additional sType discriminants ────────
+
+pub const VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO: VkStructureType = 12;
+pub const VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO: VkStructureType = 14;
+pub const VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO: VkStructureType = 15;
+pub const VK_STRUCTURE_TYPE_SUBMIT_INFO: VkStructureType = 4;
+pub const VK_STRUCTURE_TYPE_FENCE_CREATE_INFO: VkStructureType = 8;
+pub const VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO: VkStructureType = 39;
+pub const VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO: VkStructureType = 40;
+pub const VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO: VkStructureType = 42;
+pub const VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER: VkStructureType = 45;
+
+pub const VK_STRUCTURE_TYPE_VIDEO_PROFILE_LIST_INFO_KHR: VkStructureType = 1000023013;
+pub const VK_STRUCTURE_TYPE_VIDEO_PICTURE_RESOURCE_INFO_KHR: VkStructureType = 1000023002;
+pub const VK_STRUCTURE_TYPE_VIDEO_REFERENCE_SLOT_INFO_KHR: VkStructureType = 1000023011;
+pub const VK_STRUCTURE_TYPE_VIDEO_SESSION_PARAMETERS_CREATE_INFO_KHR: VkStructureType = 1000023006;
+pub const VK_STRUCTURE_TYPE_VIDEO_BEGIN_CODING_INFO_KHR: VkStructureType = 1000023008;
+pub const VK_STRUCTURE_TYPE_VIDEO_END_CODING_INFO_KHR: VkStructureType = 1000023009;
+pub const VK_STRUCTURE_TYPE_VIDEO_CODING_CONTROL_INFO_KHR: VkStructureType = 1000023010;
+pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_INFO_KHR: VkStructureType = 1000024000;
+pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_PICTURE_INFO_KHR: VkStructureType = 1000040001;
+pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_SESSION_PARAMETERS_CREATE_INFO_KHR: VkStructureType = 1000040004;
+pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_SESSION_PARAMETERS_ADD_INFO_KHR: VkStructureType = 1000040005;
+pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_DPB_SLOT_INFO_KHR: VkStructureType = 1000040006;
+
+// ─────────────────────────── Round 4 — image / buffer / pipeline constants ───
+
+/// `VK_IMAGE_USAGE_TRANSFER_SRC_BIT = 0x1`.
+pub const VK_IMAGE_USAGE_TRANSFER_SRC_BIT: VkFlags = 0x00000001;
+/// `VK_IMAGE_USAGE_TRANSFER_DST_BIT = 0x2`.
+pub const VK_IMAGE_USAGE_TRANSFER_DST_BIT: VkFlags = 0x00000002;
+/// `VK_IMAGE_USAGE_SAMPLED_BIT = 0x4`.
+pub const VK_IMAGE_USAGE_SAMPLED_BIT: VkFlags = 0x00000004;
+/// `VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR = 0x400`.
+pub const VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR: VkFlags = 0x00000400;
+/// `VK_IMAGE_USAGE_VIDEO_DECODE_SRC_BIT_KHR = 0x800`.
+pub const VK_IMAGE_USAGE_VIDEO_DECODE_SRC_BIT_KHR: VkFlags = 0x00000800;
+/// `VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR = 0x1000`.
+pub const VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR: VkFlags = 0x00001000;
+
+/// `VK_BUFFER_USAGE_TRANSFER_SRC_BIT = 0x1`.
+pub const VK_BUFFER_USAGE_TRANSFER_SRC_BIT: VkFlags = 0x00000001;
+/// `VK_BUFFER_USAGE_TRANSFER_DST_BIT = 0x2`.
+pub const VK_BUFFER_USAGE_TRANSFER_DST_BIT: VkFlags = 0x00000002;
+/// `VK_BUFFER_USAGE_VIDEO_DECODE_SRC_BIT_KHR = 0x2000`.
+pub const VK_BUFFER_USAGE_VIDEO_DECODE_SRC_BIT_KHR: VkFlags = 0x00002000;
+
+/// `VK_IMAGE_LAYOUT_UNDEFINED = 0`.
+pub const VK_IMAGE_LAYOUT_UNDEFINED: i32 = 0;
+/// `VK_IMAGE_LAYOUT_GENERAL = 1`.
+pub const VK_IMAGE_LAYOUT_GENERAL: i32 = 1;
+/// `VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL = 6`.
+pub const VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL: i32 = 6;
+/// `VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL = 7`.
+pub const VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL: i32 = 7;
+/// `VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR = 1000024000`.
+pub const VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR: i32 = 1000024000;
+/// `VK_IMAGE_LAYOUT_VIDEO_DECODE_SRC_KHR = 1000024001`.
+pub const VK_IMAGE_LAYOUT_VIDEO_DECODE_SRC_KHR: i32 = 1000024001;
+/// `VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR = 1000024002`.
+pub const VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR: i32 = 1000024002;
+
+/// `VK_IMAGE_TYPE_2D = 1`.
+pub const VK_IMAGE_TYPE_2D: i32 = 1;
+/// `VK_IMAGE_TILING_OPTIMAL = 0`.
+pub const VK_IMAGE_TILING_OPTIMAL: i32 = 0;
+/// `VK_SHARING_MODE_EXCLUSIVE = 0`.
+pub const VK_SHARING_MODE_EXCLUSIVE: i32 = 0;
+/// `VK_SAMPLE_COUNT_1_BIT = 0x1`.
+pub const VK_SAMPLE_COUNT_1_BIT: VkFlags = 0x00000001;
+/// `VK_IMAGE_VIEW_TYPE_2D = 1`.
+pub const VK_IMAGE_VIEW_TYPE_2D: i32 = 1;
+/// `VK_IMAGE_VIEW_TYPE_2D_ARRAY = 5`.
+pub const VK_IMAGE_VIEW_TYPE_2D_ARRAY: i32 = 5;
+/// `VK_IMAGE_ASPECT_COLOR_BIT = 0x1`.
+pub const VK_IMAGE_ASPECT_COLOR_BIT: VkFlags = 0x00000001;
+/// `VK_IMAGE_ASPECT_PLANE_0_BIT = 0x10`.
+pub const VK_IMAGE_ASPECT_PLANE_0_BIT: VkFlags = 0x00000010;
+/// `VK_IMAGE_ASPECT_PLANE_1_BIT = 0x20`.
+pub const VK_IMAGE_ASPECT_PLANE_1_BIT: VkFlags = 0x00000020;
+/// `VK_COMPONENT_SWIZZLE_IDENTITY = 0`.
+pub const VK_COMPONENT_SWIZZLE_IDENTITY: i32 = 0;
+/// `VK_COMMAND_BUFFER_LEVEL_PRIMARY = 0`.
+pub const VK_COMMAND_BUFFER_LEVEL_PRIMARY: i32 = 0;
+/// `VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT = 0x1`.
+pub const VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT: VkFlags = 0x00000001;
+/// `VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT = 0x2`.
+pub const VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT: VkFlags = 0x00000002;
+
+/// `VK_QUEUE_FAMILY_IGNORED = ~0u`.
+pub const VK_QUEUE_FAMILY_IGNORED: u32 = !0u32;
+
+/// `VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT = 0x1`.
+pub const VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT: VkFlags = 0x00000001;
+/// `VK_PIPELINE_STAGE_TRANSFER_BIT = 0x1000`.
+pub const VK_PIPELINE_STAGE_TRANSFER_BIT: VkFlags = 0x00001000;
+/// `VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT = 0x2000`.
+pub const VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT: VkFlags = 0x00002000;
+/// `VK_PIPELINE_STAGE_HOST_BIT = 0x4000`.
+pub const VK_PIPELINE_STAGE_HOST_BIT: VkFlags = 0x00004000;
+/// `VK_PIPELINE_STAGE_ALL_COMMANDS_BIT = 0x10000`.
+pub const VK_PIPELINE_STAGE_ALL_COMMANDS_BIT: VkFlags = 0x00010000;
+
+/// `VK_ACCESS_TRANSFER_READ_BIT = 0x800`.
+pub const VK_ACCESS_TRANSFER_READ_BIT: VkFlags = 0x00000800;
+/// `VK_ACCESS_TRANSFER_WRITE_BIT = 0x1000`.
+pub const VK_ACCESS_TRANSFER_WRITE_BIT: VkFlags = 0x00001000;
+/// `VK_ACCESS_HOST_READ_BIT = 0x2000`.
+pub const VK_ACCESS_HOST_READ_BIT: VkFlags = 0x00002000;
+/// `VK_ACCESS_HOST_WRITE_BIT = 0x4000`.
+pub const VK_ACCESS_HOST_WRITE_BIT: VkFlags = 0x00004000;
+/// `VK_ACCESS_MEMORY_READ_BIT = 0x8000`.
+pub const VK_ACCESS_MEMORY_READ_BIT: VkFlags = 0x00008000;
+/// `VK_ACCESS_MEMORY_WRITE_BIT = 0x10000`.
+pub const VK_ACCESS_MEMORY_WRITE_BIT: VkFlags = 0x00010000;
+
+/// `VK_VIDEO_CODING_CONTROL_RESET_BIT_KHR = 0x1`.
+pub const VK_VIDEO_CODING_CONTROL_RESET_BIT_KHR: VkFlags = 0x00000001;
+
 // ─────────────────────────── function pointer types ──────────────────────────
 
 /// `vkGetInstanceProcAddr(instance, name)` — the universal Vulkan
@@ -645,7 +785,7 @@ pub struct VkPhysicalDeviceProperties {
 
 /// `VkExtent3D` — used in `VkQueueFamilyProperties`.
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct VkExtent3D {
     pub width: u32,
     pub height: u32,
@@ -911,6 +1051,546 @@ pub struct VkBindVideoSessionMemoryInfoKHR {
     pub memory_size: VkDeviceSize,
 }
 
+// ─────────────────────────── Round 4 — H.264 Std structs ─────────────────────
+//
+// Layouts mirror `vk_video/vulkan_video_codec_h264std.h` and
+// `vulkan_video_codec_h264std_decode.h` exactly. Bitfield ordering follows
+// the ABI used by GCC/Clang on x86_64 Linux: contiguous fields packed from
+// the LSB upward in declaration order. The aggregate type backing each
+// `*Flags` struct is `uint32_t`, matching the C declaration's
+// `uint32_t : 1` widths.
+
+/// Backing storage for `StdVideoH264SpsFlags` (16 bitfields × 1 bit
+/// packed into a `uint32_t`). We model the bitfield as a single `u32`
+/// and provide accessor helpers so callers don't have to reinvent the
+/// shift math.
+pub type StdVideoH264SpsFlagsBits = u32;
+/// Backing storage for `StdVideoH264PpsFlags` (8 bitfields × 1 bit).
+pub type StdVideoH264PpsFlagsBits = u32;
+/// Backing storage for `StdVideoH264SpsVuiFlags` (12 bitfields × 1 bit).
+pub type StdVideoH264SpsVuiFlagsBits = u32;
+/// Backing storage for `StdVideoDecodeH264PictureInfoFlags` (6 bits).
+pub type StdVideoDecodeH264PictureInfoFlagsBits = u32;
+
+/// `StdVideoH264ChromaFormatIdc` enum-typed field.
+pub type StdVideoH264ChromaFormatIdc = i32;
+pub const STD_VIDEO_H264_CHROMA_FORMAT_IDC_420: StdVideoH264ChromaFormatIdc = 1;
+
+/// `StdVideoH264PocType` enum-typed field.
+pub type StdVideoH264PocType = i32;
+
+/// `StdVideoH264WeightedBipredIdc` enum-typed field.
+pub type StdVideoH264WeightedBipredIdc = i32;
+
+/// `StdVideoH264SpsFlags` — 16 single-bit flags packed into a u32.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct StdVideoH264SpsFlags {
+    pub flags: StdVideoH264SpsFlagsBits,
+}
+impl StdVideoH264SpsFlags {
+    /// `frame_mbs_only_flag` is bit 8 (in declaration order: index 8).
+    /// Bit packing follows GCC/Clang ABI: first declared bit at
+    /// position 0.
+    /// constraint_set0_flag (bit 0)
+    pub const CONSTRAINT_SET0: u32 = 1 << 0;
+    /// constraint_set1_flag (bit 1)
+    pub const CONSTRAINT_SET1: u32 = 1 << 1;
+    /// direct_8x8_inference_flag (bit 6)
+    pub const DIRECT_8X8_INFERENCE: u32 = 1 << 6;
+    /// mb_adaptive_frame_field_flag (bit 7)
+    pub const MB_ADAPTIVE_FRAME_FIELD: u32 = 1 << 7;
+    /// frame_mbs_only_flag (bit 8)
+    pub const FRAME_MBS_ONLY: u32 = 1 << 8;
+    /// delta_pic_order_always_zero_flag (bit 9)
+    pub const DELTA_POC_ALWAYS_ZERO: u32 = 1 << 9;
+    /// gaps_in_frame_num_value_allowed_flag (bit 11)
+    pub const GAPS_IN_FRAME_NUM: u32 = 1 << 11;
+    /// frame_cropping_flag (bit 13)
+    pub const FRAME_CROPPING: u32 = 1 << 13;
+    /// vui_parameters_present_flag (bit 15)
+    pub const VUI_PARAMETERS_PRESENT: u32 = 1 << 15;
+}
+
+/// `StdVideoH264PpsFlags` — 8 single-bit flags packed into a u32.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct StdVideoH264PpsFlags {
+    pub flags: StdVideoH264PpsFlagsBits,
+}
+impl StdVideoH264PpsFlags {
+    /// transform_8x8_mode_flag (bit 0)
+    pub const TRANSFORM_8X8_MODE: u32 = 1 << 0;
+    /// redundant_pic_cnt_present_flag (bit 1)
+    pub const REDUNDANT_PIC_CNT: u32 = 1 << 1;
+    /// constrained_intra_pred_flag (bit 2)
+    pub const CONSTRAINED_INTRA_PRED: u32 = 1 << 2;
+    /// deblocking_filter_control_present_flag (bit 3)
+    pub const DEBLOCK_FILTER_CTRL: u32 = 1 << 3;
+    /// weighted_pred_flag (bit 4)
+    pub const WEIGHTED_PRED: u32 = 1 << 4;
+    /// bottom_field_pic_order_in_frame_present_flag (bit 5)
+    pub const BOTTOM_FIELD_POC_IN_FRAME: u32 = 1 << 5;
+    /// entropy_coding_mode_flag (bit 6) — CABAC vs CAVLC
+    pub const ENTROPY_CODING_MODE: u32 = 1 << 6;
+    /// pic_scaling_matrix_present_flag (bit 7)
+    pub const PIC_SCALING_MATRIX: u32 = 1 << 7;
+}
+
+/// `StdVideoH264ScalingLists` — present-flag mask + the 4×4 / 8×8 lists.
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct StdVideoH264ScalingLists {
+    pub scaling_list_present_mask: u16,
+    pub use_default_scaling_matrix_mask: u16,
+    pub scaling_list_4x4: [[u8; 16]; 6],
+    pub scaling_list_8x8: [[u8; 64]; 6],
+}
+
+impl Default for StdVideoH264ScalingLists {
+    fn default() -> Self {
+        Self {
+            scaling_list_present_mask: 0,
+            use_default_scaling_matrix_mask: 0,
+            scaling_list_4x4: [[0; 16]; 6],
+            scaling_list_8x8: [[0; 64]; 6],
+        }
+    }
+}
+
+/// `StdVideoH264SequenceParameterSet` — the SPS the GPU consumes.
+///
+/// Field order and types mirror the Khronos header. The trailing
+/// pointer fields (`pOffsetForRefFrame`, `pScalingLists`,
+/// `pSequenceParameterSetVui`) may all be null for a baseline IDR
+/// decode.
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct StdVideoH264SequenceParameterSet {
+    pub flags: StdVideoH264SpsFlags,
+    pub profile_idc: StdVideoH264ProfileIdc,
+    pub level_idc: StdVideoH264LevelIdc,
+    pub chroma_format_idc: StdVideoH264ChromaFormatIdc,
+    pub seq_parameter_set_id: u8,
+    pub bit_depth_luma_minus8: u8,
+    pub bit_depth_chroma_minus8: u8,
+    pub log2_max_frame_num_minus4: u8,
+    pub pic_order_cnt_type: StdVideoH264PocType,
+    pub offset_for_non_ref_pic: i32,
+    pub offset_for_top_to_bottom_field: i32,
+    pub log2_max_pic_order_cnt_lsb_minus4: u8,
+    pub num_ref_frames_in_pic_order_cnt_cycle: u8,
+    pub max_num_ref_frames: u8,
+    pub reserved1: u8,
+    pub pic_width_in_mbs_minus1: u32,
+    pub pic_height_in_map_units_minus1: u32,
+    pub frame_crop_left_offset: u32,
+    pub frame_crop_right_offset: u32,
+    pub frame_crop_top_offset: u32,
+    pub frame_crop_bottom_offset: u32,
+    pub reserved2: u32,
+    pub p_offset_for_ref_frame: *const i32,
+    pub p_scaling_lists: *const StdVideoH264ScalingLists,
+    pub p_sequence_parameter_set_vui: *const c_void,
+}
+
+/// `StdVideoH264PictureParameterSet` — the PPS the GPU consumes.
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct StdVideoH264PictureParameterSet {
+    pub flags: StdVideoH264PpsFlags,
+    pub seq_parameter_set_id: u8,
+    pub pic_parameter_set_id: u8,
+    pub num_ref_idx_l0_default_active_minus1: u8,
+    pub num_ref_idx_l1_default_active_minus1: u8,
+    pub weighted_bipred_idc: StdVideoH264WeightedBipredIdc,
+    pub pic_init_qp_minus26: i8,
+    pub pic_init_qs_minus26: i8,
+    pub chroma_qp_index_offset: i8,
+    pub second_chroma_qp_index_offset: i8,
+    pub p_scaling_lists: *const StdVideoH264ScalingLists,
+}
+
+/// `StdVideoDecodeH264PictureInfoFlags` — 6 bitfield flags.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct StdVideoDecodeH264PictureInfoFlags {
+    pub flags: StdVideoDecodeH264PictureInfoFlagsBits,
+}
+impl StdVideoDecodeH264PictureInfoFlags {
+    /// field_pic_flag (bit 0)
+    pub const FIELD_PIC: u32 = 1 << 0;
+    /// is_intra (bit 1)
+    pub const IS_INTRA: u32 = 1 << 1;
+    /// IdrPicFlag (bit 2)
+    pub const IDR_PIC: u32 = 1 << 2;
+    /// bottom_field_flag (bit 3)
+    pub const BOTTOM_FIELD: u32 = 1 << 3;
+    /// is_reference (bit 4)
+    pub const IS_REFERENCE: u32 = 1 << 4;
+    /// complementary_field_pair (bit 5)
+    pub const COMPLEMENTARY_FIELD_PAIR: u32 = 1 << 5;
+}
+
+/// `StdVideoDecodeH264PictureInfo` — per-frame H.264 std picture info
+/// fed in the `pNext` chain of `VkVideoDecodeH264PictureInfoKHR`.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct StdVideoDecodeH264PictureInfo {
+    pub flags: StdVideoDecodeH264PictureInfoFlags,
+    pub seq_parameter_set_id: u8,
+    pub pic_parameter_set_id: u8,
+    pub reserved1: u8,
+    pub reserved2: u8,
+    pub frame_num: u16,
+    pub idr_pic_id: u16,
+    /// `PicOrderCnt[STD_VIDEO_DECODE_H264_FIELD_ORDER_COUNT_LIST_SIZE]`
+    /// (size = 2; top + bottom field).
+    pub pic_order_cnt: [i32; 2],
+}
+
+/// `StdVideoDecodeH264ReferenceInfoFlags` — 4 bitfield flags.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct StdVideoDecodeH264ReferenceInfoFlags {
+    pub flags: u32,
+}
+impl StdVideoDecodeH264ReferenceInfoFlags {
+    pub const TOP_FIELD: u32 = 1 << 0;
+    pub const BOTTOM_FIELD: u32 = 1 << 1;
+    pub const USED_FOR_LONG_TERM_REFERENCE: u32 = 1 << 2;
+    pub const IS_NON_EXISTING: u32 = 1 << 3;
+}
+
+/// `StdVideoDecodeH264ReferenceInfo` — DPB-slot reference picture metadata.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct StdVideoDecodeH264ReferenceInfo {
+    pub flags: StdVideoDecodeH264ReferenceInfoFlags,
+    pub frame_num: u16,
+    pub reserved: u16,
+    pub pic_order_cnt: [i32; 2],
+}
+
+// ─────────────────────────── Round 4 — Vulkan-side video structs ─────────────
+
+/// `VkVideoProfileListInfoKHR` — chained off VkBufferCreateInfo /
+/// VkImageCreateInfo.pNext to associate a buffer/image with one or
+/// more video profiles. Driver requires this for any video resource.
+#[repr(C)]
+pub struct VkVideoProfileListInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub profile_count: u32,
+    pub p_profiles: *const VkVideoProfileInfoKHR,
+}
+
+/// `VkVideoSessionParametersCreateInfoKHR` — argument bundle for
+/// `vkCreateVideoSessionParametersKHR`. The `pNext` chain carries a
+/// codec-specific create-info struct (e.g.
+/// `VkVideoDecodeH264SessionParametersCreateInfoKHR`).
+#[repr(C)]
+pub struct VkVideoSessionParametersCreateInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub flags: VkFlags,
+    pub video_session_parameters_template: VkVideoSessionParametersKHR,
+    pub video_session: VkVideoSessionKHR,
+}
+
+/// `VkVideoDecodeH264SessionParametersAddInfoKHR` — list of SPS + PPS
+/// to load into the session parameters object.
+#[repr(C)]
+pub struct VkVideoDecodeH264SessionParametersAddInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub std_sps_count: u32,
+    pub p_std_sp_ss: *const StdVideoH264SequenceParameterSet,
+    pub std_pps_count: u32,
+    pub p_std_pp_ss: *const StdVideoH264PictureParameterSet,
+}
+
+/// `VkVideoDecodeH264SessionParametersCreateInfoKHR` — chained off
+/// `VkVideoSessionParametersCreateInfoKHR.pNext` for H.264 decode.
+#[repr(C)]
+pub struct VkVideoDecodeH264SessionParametersCreateInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub max_std_sps_count: u32,
+    pub max_std_pps_count: u32,
+    pub p_parameters_add_info: *const VkVideoDecodeH264SessionParametersAddInfoKHR,
+}
+
+/// `VkVideoDecodeH264PictureInfoKHR` — chained off
+/// `VkVideoDecodeInfoKHR.pNext` for an H.264 frame.
+#[repr(C)]
+pub struct VkVideoDecodeH264PictureInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub p_std_picture_info: *const StdVideoDecodeH264PictureInfo,
+    pub slice_count: u32,
+    pub p_slice_offsets: *const u32,
+}
+
+/// `VkVideoDecodeH264DpbSlotInfoKHR` — chained off
+/// `VkVideoReferenceSlotInfoKHR.pNext` to associate an H.264-specific
+/// reference-info struct with a DPB slot.
+#[repr(C)]
+pub struct VkVideoDecodeH264DpbSlotInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub p_std_reference_info: *const StdVideoDecodeH264ReferenceInfo,
+}
+
+/// `VkVideoPictureResourceInfoKHR` — describes a DPB- or output-side
+/// image-view and the coded extent the decoder will render into it.
+#[repr(C)]
+pub struct VkVideoPictureResourceInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub coded_offset: VkOffset2D,
+    pub coded_extent: VkExtent2D,
+    pub base_array_layer: u32,
+    pub image_view_binding: VkImageView,
+}
+
+/// `VkVideoReferenceSlotInfoKHR` — DPB-slot index + (optional)
+/// picture-resource that occupies it.
+#[repr(C)]
+pub struct VkVideoReferenceSlotInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub slot_index: i32,
+    pub p_picture_resource: *const VkVideoPictureResourceInfoKHR,
+}
+
+/// `VkVideoBeginCodingInfoKHR` — argument to
+/// `vkCmdBeginVideoCodingKHR`. The reference-slot list is the
+/// active-DPB list for the coding scope.
+#[repr(C)]
+pub struct VkVideoBeginCodingInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub flags: VkFlags,
+    pub video_session: VkVideoSessionKHR,
+    pub video_session_parameters: VkVideoSessionParametersKHR,
+    pub reference_slot_count: u32,
+    pub p_reference_slots: *const VkVideoReferenceSlotInfoKHR,
+}
+
+/// `VkVideoEndCodingInfoKHR` — argument to `vkCmdEndVideoCodingKHR`.
+#[repr(C)]
+pub struct VkVideoEndCodingInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub flags: VkFlags,
+}
+
+/// `VkVideoCodingControlInfoKHR` — argument to
+/// `vkCmdControlVideoCodingKHR`. Currently used only to issue the
+/// session-reset that the spec mandates before the first decode.
+#[repr(C)]
+pub struct VkVideoCodingControlInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub flags: VkFlags,
+}
+
+/// `VkVideoDecodeInfoKHR` — argument to `vkCmdDecodeVideoKHR`. The
+/// codec-specific picture-info struct is chained off `pNext`.
+#[repr(C)]
+pub struct VkVideoDecodeInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub flags: VkFlags,
+    pub src_buffer: VkBuffer,
+    pub src_buffer_offset: VkDeviceSize,
+    pub src_buffer_range: VkDeviceSize,
+    pub dst_picture_resource: VkVideoPictureResourceInfoKHR,
+    pub p_setup_reference_slot: *const VkVideoReferenceSlotInfoKHR,
+    pub reference_slot_count: u32,
+    pub p_reference_slots: *const VkVideoReferenceSlotInfoKHR,
+}
+
+// ─────────────────────────── Round 4 — buffer / image / cmd structs ──────────
+
+/// `VkBufferCreateInfo` — argument to `vkCreateBuffer`. The `pNext`
+/// chain MUST carry a `VkVideoProfileListInfoKHR` for any buffer used
+/// as a video bitstream source.
+#[repr(C)]
+pub struct VkBufferCreateInfo {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub flags: VkFlags,
+    pub size: VkDeviceSize,
+    pub usage: VkFlags,
+    pub sharing_mode: i32,
+    pub queue_family_index_count: u32,
+    pub p_queue_family_indices: *const u32,
+}
+
+/// `VkImageCreateInfo` — argument to `vkCreateImage`. Same pNext rule
+/// for video images.
+#[repr(C)]
+pub struct VkImageCreateInfo {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub flags: VkFlags,
+    pub image_type: i32,
+    pub format: VkFormat,
+    pub extent: VkExtent3D,
+    pub mip_levels: u32,
+    pub array_layers: u32,
+    pub samples: VkFlags,
+    pub tiling: i32,
+    pub usage: VkFlags,
+    pub sharing_mode: i32,
+    pub queue_family_index_count: u32,
+    pub p_queue_family_indices: *const u32,
+    pub initial_layout: i32,
+}
+
+/// `VkComponentMapping` — RGBA swizzle.
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct VkComponentMapping {
+    pub r: i32,
+    pub g: i32,
+    pub b: i32,
+    pub a: i32,
+}
+
+impl Default for VkComponentMapping {
+    fn default() -> Self {
+        Self {
+            r: VK_COMPONENT_SWIZZLE_IDENTITY,
+            g: VK_COMPONENT_SWIZZLE_IDENTITY,
+            b: VK_COMPONENT_SWIZZLE_IDENTITY,
+            a: VK_COMPONENT_SWIZZLE_IDENTITY,
+        }
+    }
+}
+
+/// `VkImageSubresourceRange`.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct VkImageSubresourceRange {
+    pub aspect_mask: VkFlags,
+    pub base_mip_level: u32,
+    pub level_count: u32,
+    pub base_array_layer: u32,
+    pub layer_count: u32,
+}
+
+/// `VkImageSubresourceLayers`.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct VkImageSubresourceLayers {
+    pub aspect_mask: VkFlags,
+    pub mip_level: u32,
+    pub base_array_layer: u32,
+    pub layer_count: u32,
+}
+
+/// `VkImageViewCreateInfo`.
+#[repr(C)]
+pub struct VkImageViewCreateInfo {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub flags: VkFlags,
+    pub image: VkImage,
+    pub view_type: i32,
+    pub format: VkFormat,
+    pub components: VkComponentMapping,
+    pub subresource_range: VkImageSubresourceRange,
+}
+
+/// `VkOffset3D` — used by `VkBufferImageCopy`.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct VkOffset3D {
+    pub x: i32,
+    pub y: i32,
+    pub z: i32,
+}
+
+/// `VkBufferImageCopy`.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct VkBufferImageCopy {
+    pub buffer_offset: VkDeviceSize,
+    pub buffer_row_length: u32,
+    pub buffer_image_height: u32,
+    pub image_subresource: VkImageSubresourceLayers,
+    pub image_offset: VkOffset3D,
+    pub image_extent: VkExtent3D,
+}
+
+/// `VkImageMemoryBarrier`.
+#[repr(C)]
+pub struct VkImageMemoryBarrier {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub src_access_mask: VkFlags,
+    pub dst_access_mask: VkFlags,
+    pub old_layout: i32,
+    pub new_layout: i32,
+    pub src_queue_family_index: u32,
+    pub dst_queue_family_index: u32,
+    pub image: VkImage,
+    pub subresource_range: VkImageSubresourceRange,
+}
+
+/// `VkCommandPoolCreateInfo`.
+#[repr(C)]
+pub struct VkCommandPoolCreateInfo {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub flags: VkFlags,
+    pub queue_family_index: u32,
+}
+
+/// `VkCommandBufferAllocateInfo`.
+#[repr(C)]
+pub struct VkCommandBufferAllocateInfo {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub command_pool: VkCommandPool,
+    pub level: i32,
+    pub command_buffer_count: u32,
+}
+
+/// `VkCommandBufferBeginInfo`.
+#[repr(C)]
+pub struct VkCommandBufferBeginInfo {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub flags: VkFlags,
+    pub p_inheritance_info: *const c_void,
+}
+
+/// `VkSubmitInfo`.
+#[repr(C)]
+pub struct VkSubmitInfo {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub wait_semaphore_count: u32,
+    pub p_wait_semaphores: *const c_void,
+    pub p_wait_dst_stage_mask: *const VkFlags,
+    pub command_buffer_count: u32,
+    pub p_command_buffers: *const VkCommandBuffer,
+    pub signal_semaphore_count: u32,
+    pub p_signal_semaphores: *const c_void,
+}
+
+/// `VkFenceCreateInfo`.
+#[repr(C)]
+pub struct VkFenceCreateInfo {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub flags: VkFlags,
+}
+
 // ─────────────────────────── Post-bootstrap function pointer types ────────────
 
 /// `vkDestroyInstance(instance, allocator)` — called from
@@ -1046,6 +1726,194 @@ pub type FnVkBindVideoSessionMemoryKHR = unsafe extern "C" fn(
     video_session: VkVideoSessionKHR,
     bind_session_memory_info_count: u32,
     p_bind_session_memory_infos: *const VkBindVideoSessionMemoryInfoKHR,
+) -> VkResult;
+
+// ─────────────────────────── Round 4 — function pointer types ────────────────
+
+pub type FnVkCreateVideoSessionParametersKHR = unsafe extern "C" fn(
+    device: VkDevice,
+    p_create_info: *const VkVideoSessionParametersCreateInfoKHR,
+    p_allocator: *const c_void,
+    p_video_session_parameters: *mut VkVideoSessionParametersKHR,
+) -> VkResult;
+
+pub type FnVkDestroyVideoSessionParametersKHR = unsafe extern "C" fn(
+    device: VkDevice,
+    video_session_parameters: VkVideoSessionParametersKHR,
+    p_allocator: *const c_void,
+);
+
+pub type FnVkCmdBeginVideoCodingKHR = unsafe extern "C" fn(
+    command_buffer: VkCommandBuffer,
+    p_begin_info: *const VkVideoBeginCodingInfoKHR,
+);
+
+pub type FnVkCmdEndVideoCodingKHR = unsafe extern "C" fn(
+    command_buffer: VkCommandBuffer,
+    p_end_coding_info: *const VkVideoEndCodingInfoKHR,
+);
+
+pub type FnVkCmdControlVideoCodingKHR = unsafe extern "C" fn(
+    command_buffer: VkCommandBuffer,
+    p_coding_control_info: *const VkVideoCodingControlInfoKHR,
+);
+
+pub type FnVkCmdDecodeVideoKHR = unsafe extern "C" fn(
+    command_buffer: VkCommandBuffer,
+    p_decode_info: *const VkVideoDecodeInfoKHR,
+);
+
+pub type FnVkCreateBuffer = unsafe extern "C" fn(
+    device: VkDevice,
+    p_create_info: *const VkBufferCreateInfo,
+    p_allocator: *const c_void,
+    p_buffer: *mut VkBuffer,
+) -> VkResult;
+
+pub type FnVkDestroyBuffer =
+    unsafe extern "C" fn(device: VkDevice, buffer: VkBuffer, p_allocator: *const c_void);
+
+pub type FnVkCreateImage = unsafe extern "C" fn(
+    device: VkDevice,
+    p_create_info: *const VkImageCreateInfo,
+    p_allocator: *const c_void,
+    p_image: *mut VkImage,
+) -> VkResult;
+
+pub type FnVkDestroyImage =
+    unsafe extern "C" fn(device: VkDevice, image: VkImage, p_allocator: *const c_void);
+
+pub type FnVkCreateImageView = unsafe extern "C" fn(
+    device: VkDevice,
+    p_create_info: *const VkImageViewCreateInfo,
+    p_allocator: *const c_void,
+    p_image_view: *mut VkImageView,
+) -> VkResult;
+
+pub type FnVkDestroyImageView = unsafe extern "C" fn(
+    device: VkDevice,
+    image_view: VkImageView,
+    p_allocator: *const c_void,
+);
+
+pub type FnVkGetBufferMemoryRequirements = unsafe extern "C" fn(
+    device: VkDevice,
+    buffer: VkBuffer,
+    p_memory_requirements: *mut VkMemoryRequirements,
+);
+
+pub type FnVkGetImageMemoryRequirements = unsafe extern "C" fn(
+    device: VkDevice,
+    image: VkImage,
+    p_memory_requirements: *mut VkMemoryRequirements,
+);
+
+pub type FnVkBindBufferMemory = unsafe extern "C" fn(
+    device: VkDevice,
+    buffer: VkBuffer,
+    memory: VkDeviceMemory,
+    memory_offset: VkDeviceSize,
+) -> VkResult;
+
+pub type FnVkBindImageMemory = unsafe extern "C" fn(
+    device: VkDevice,
+    image: VkImage,
+    memory: VkDeviceMemory,
+    memory_offset: VkDeviceSize,
+) -> VkResult;
+
+pub type FnVkMapMemory = unsafe extern "C" fn(
+    device: VkDevice,
+    memory: VkDeviceMemory,
+    offset: VkDeviceSize,
+    size: VkDeviceSize,
+    flags: VkFlags,
+    pp_data: *mut *mut c_void,
+) -> VkResult;
+
+pub type FnVkUnmapMemory = unsafe extern "C" fn(device: VkDevice, memory: VkDeviceMemory);
+
+pub type FnVkCreateCommandPool = unsafe extern "C" fn(
+    device: VkDevice,
+    p_create_info: *const VkCommandPoolCreateInfo,
+    p_allocator: *const c_void,
+    p_command_pool: *mut VkCommandPool,
+) -> VkResult;
+
+pub type FnVkDestroyCommandPool = unsafe extern "C" fn(
+    device: VkDevice,
+    command_pool: VkCommandPool,
+    p_allocator: *const c_void,
+);
+
+pub type FnVkAllocateCommandBuffers = unsafe extern "C" fn(
+    device: VkDevice,
+    p_allocate_info: *const VkCommandBufferAllocateInfo,
+    p_command_buffers: *mut VkCommandBuffer,
+) -> VkResult;
+
+pub type FnVkFreeCommandBuffers = unsafe extern "C" fn(
+    device: VkDevice,
+    command_pool: VkCommandPool,
+    command_buffer_count: u32,
+    p_command_buffers: *const VkCommandBuffer,
+);
+
+pub type FnVkBeginCommandBuffer = unsafe extern "C" fn(
+    command_buffer: VkCommandBuffer,
+    p_begin_info: *const VkCommandBufferBeginInfo,
+) -> VkResult;
+
+pub type FnVkEndCommandBuffer =
+    unsafe extern "C" fn(command_buffer: VkCommandBuffer) -> VkResult;
+
+pub type FnVkCmdPipelineBarrier = unsafe extern "C" fn(
+    command_buffer: VkCommandBuffer,
+    src_stage_mask: VkFlags,
+    dst_stage_mask: VkFlags,
+    dependency_flags: VkFlags,
+    memory_barrier_count: u32,
+    p_memory_barriers: *const c_void,
+    buffer_memory_barrier_count: u32,
+    p_buffer_memory_barriers: *const c_void,
+    image_memory_barrier_count: u32,
+    p_image_memory_barriers: *const VkImageMemoryBarrier,
+);
+
+pub type FnVkCmdCopyImageToBuffer = unsafe extern "C" fn(
+    command_buffer: VkCommandBuffer,
+    src_image: VkImage,
+    src_image_layout: i32,
+    dst_buffer: VkBuffer,
+    region_count: u32,
+    p_regions: *const VkBufferImageCopy,
+);
+
+pub type FnVkQueueSubmit = unsafe extern "C" fn(
+    queue: VkQueue,
+    submit_count: u32,
+    p_submits: *const VkSubmitInfo,
+    fence: VkFence,
+) -> VkResult;
+
+pub type FnVkQueueWaitIdle = unsafe extern "C" fn(queue: VkQueue) -> VkResult;
+
+pub type FnVkCreateFence = unsafe extern "C" fn(
+    device: VkDevice,
+    p_create_info: *const VkFenceCreateInfo,
+    p_allocator: *const c_void,
+    p_fence: *mut VkFence,
+) -> VkResult;
+
+pub type FnVkDestroyFence =
+    unsafe extern "C" fn(device: VkDevice, fence: VkFence, p_allocator: *const c_void);
+
+pub type FnVkWaitForFences = unsafe extern "C" fn(
+    device: VkDevice,
+    fence_count: u32,
+    p_fences: *const VkFence,
+    wait_all: VkBool32,
+    timeout: u64,
 ) -> VkResult;
 
 // ─────────────────────────── Vtable ───────────────────────────────────────────

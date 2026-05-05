@@ -28,11 +28,21 @@ use std::ptr;
 use crate::instance::{load_device_fn, VkError};
 use crate::physical_device::PhysicalDevice;
 use crate::sys::{
-    FnVkAllocateMemory, FnVkBindVideoSessionMemoryKHR, FnVkCreateVideoSessionKHR,
-    FnVkDestroyDevice, FnVkDestroyVideoSessionKHR, FnVkFreeMemory, FnVkGetDeviceProcAddr,
-    FnVkGetDeviceQueue, FnVkGetVideoSessionMemoryRequirementsKHR, VkDevice, VkDeviceCreateInfo,
-    VkDeviceQueueCreateInfo, VkQueue, VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-    VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, VK_SUCCESS,
+    FnVkAllocateCommandBuffers, FnVkAllocateMemory, FnVkBeginCommandBuffer,
+    FnVkBindBufferMemory, FnVkBindImageMemory, FnVkBindVideoSessionMemoryKHR,
+    FnVkCmdBeginVideoCodingKHR, FnVkCmdControlVideoCodingKHR, FnVkCmdCopyImageToBuffer,
+    FnVkCmdDecodeVideoKHR, FnVkCmdEndVideoCodingKHR, FnVkCmdPipelineBarrier,
+    FnVkCreateBuffer, FnVkCreateCommandPool, FnVkCreateFence, FnVkCreateImage,
+    FnVkCreateImageView, FnVkCreateVideoSessionKHR, FnVkCreateVideoSessionParametersKHR,
+    FnVkDestroyBuffer, FnVkDestroyCommandPool, FnVkDestroyDevice, FnVkDestroyFence,
+    FnVkDestroyImage, FnVkDestroyImageView, FnVkDestroyVideoSessionKHR,
+    FnVkDestroyVideoSessionParametersKHR, FnVkEndCommandBuffer, FnVkFreeCommandBuffers,
+    FnVkFreeMemory, FnVkGetBufferMemoryRequirements, FnVkGetDeviceProcAddr,
+    FnVkGetDeviceQueue, FnVkGetImageMemoryRequirements, FnVkGetVideoSessionMemoryRequirementsKHR,
+    FnVkMapMemory, FnVkQueueSubmit, FnVkQueueWaitIdle, FnVkUnmapMemory, FnVkWaitForFences,
+    VkDevice, VkDeviceCreateInfo, VkDeviceQueueCreateInfo, VkQueue,
+    VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+    VK_SUCCESS,
 };
 
 /// Default per-queue priority. Vulkan only requires the values to lie
@@ -65,11 +75,48 @@ pub(crate) struct DeviceFns {
     pub(crate) get_device_queue: FnVkGetDeviceQueue,
     pub(crate) allocate_memory: FnVkAllocateMemory,
     pub(crate) free_memory: FnVkFreeMemory,
+    pub(crate) map_memory: FnVkMapMemory,
+    pub(crate) unmap_memory: FnVkUnmapMemory,
     pub(crate) create_video_session_khr: FnVkCreateVideoSessionKHR,
     pub(crate) destroy_video_session_khr: FnVkDestroyVideoSessionKHR,
     pub(crate) get_video_session_memory_requirements_khr:
         FnVkGetVideoSessionMemoryRequirementsKHR,
     pub(crate) bind_video_session_memory_khr: FnVkBindVideoSessionMemoryKHR,
+
+    // Round 4 additions
+    pub(crate) create_video_session_parameters_khr: FnVkCreateVideoSessionParametersKHR,
+    pub(crate) destroy_video_session_parameters_khr: FnVkDestroyVideoSessionParametersKHR,
+    pub(crate) cmd_begin_video_coding_khr: FnVkCmdBeginVideoCodingKHR,
+    pub(crate) cmd_end_video_coding_khr: FnVkCmdEndVideoCodingKHR,
+    pub(crate) cmd_control_video_coding_khr: FnVkCmdControlVideoCodingKHR,
+    pub(crate) cmd_decode_video_khr: FnVkCmdDecodeVideoKHR,
+
+    pub(crate) create_buffer: FnVkCreateBuffer,
+    pub(crate) destroy_buffer: FnVkDestroyBuffer,
+    pub(crate) create_image: FnVkCreateImage,
+    pub(crate) destroy_image: FnVkDestroyImage,
+    pub(crate) create_image_view: FnVkCreateImageView,
+    pub(crate) destroy_image_view: FnVkDestroyImageView,
+    pub(crate) get_buffer_memory_requirements: FnVkGetBufferMemoryRequirements,
+    pub(crate) get_image_memory_requirements: FnVkGetImageMemoryRequirements,
+    pub(crate) bind_buffer_memory: FnVkBindBufferMemory,
+    pub(crate) bind_image_memory: FnVkBindImageMemory,
+
+    pub(crate) create_command_pool: FnVkCreateCommandPool,
+    pub(crate) destroy_command_pool: FnVkDestroyCommandPool,
+    pub(crate) allocate_command_buffers: FnVkAllocateCommandBuffers,
+    pub(crate) free_command_buffers: FnVkFreeCommandBuffers,
+    pub(crate) begin_command_buffer: FnVkBeginCommandBuffer,
+    pub(crate) end_command_buffer: FnVkEndCommandBuffer,
+    pub(crate) cmd_pipeline_barrier: FnVkCmdPipelineBarrier,
+    pub(crate) cmd_copy_image_to_buffer: FnVkCmdCopyImageToBuffer,
+
+    pub(crate) queue_submit: FnVkQueueSubmit,
+    pub(crate) queue_wait_idle: FnVkQueueWaitIdle,
+
+    pub(crate) create_fence: FnVkCreateFence,
+    pub(crate) destroy_fence: FnVkDestroyFence,
+    pub(crate) wait_for_fences: FnVkWaitForFences,
 }
 
 /// A `VkQueue` handle. Round 3 doesn't issue commands yet — the
@@ -239,22 +286,12 @@ impl DeviceFns {
         unsafe {
             Ok(Self {
                 get_device_proc_addr: get_device_proc,
-                destroy_device: load_device_fn(
-                    get_device_proc,
-                    device,
-                    b"vkDestroyDevice\0",
-                )?,
-                get_device_queue: load_device_fn(
-                    get_device_proc,
-                    device,
-                    b"vkGetDeviceQueue\0",
-                )?,
-                allocate_memory: load_device_fn(
-                    get_device_proc,
-                    device,
-                    b"vkAllocateMemory\0",
-                )?,
+                destroy_device: load_device_fn(get_device_proc, device, b"vkDestroyDevice\0")?,
+                get_device_queue: load_device_fn(get_device_proc, device, b"vkGetDeviceQueue\0")?,
+                allocate_memory: load_device_fn(get_device_proc, device, b"vkAllocateMemory\0")?,
                 free_memory: load_device_fn(get_device_proc, device, b"vkFreeMemory\0")?,
+                map_memory: load_device_fn(get_device_proc, device, b"vkMapMemory\0")?,
+                unmap_memory: load_device_fn(get_device_proc, device, b"vkUnmapMemory\0")?,
                 create_video_session_khr: load_device_fn(
                     get_device_proc,
                     device,
@@ -274,6 +311,119 @@ impl DeviceFns {
                     get_device_proc,
                     device,
                     b"vkBindVideoSessionMemoryKHR\0",
+                )?,
+                create_video_session_parameters_khr: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkCreateVideoSessionParametersKHR\0",
+                )?,
+                destroy_video_session_parameters_khr: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkDestroyVideoSessionParametersKHR\0",
+                )?,
+                cmd_begin_video_coding_khr: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkCmdBeginVideoCodingKHR\0",
+                )?,
+                cmd_end_video_coding_khr: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkCmdEndVideoCodingKHR\0",
+                )?,
+                cmd_control_video_coding_khr: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkCmdControlVideoCodingKHR\0",
+                )?,
+                cmd_decode_video_khr: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkCmdDecodeVideoKHR\0",
+                )?,
+                create_buffer: load_device_fn(get_device_proc, device, b"vkCreateBuffer\0")?,
+                destroy_buffer: load_device_fn(get_device_proc, device, b"vkDestroyBuffer\0")?,
+                create_image: load_device_fn(get_device_proc, device, b"vkCreateImage\0")?,
+                destroy_image: load_device_fn(get_device_proc, device, b"vkDestroyImage\0")?,
+                create_image_view: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkCreateImageView\0",
+                )?,
+                destroy_image_view: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkDestroyImageView\0",
+                )?,
+                get_buffer_memory_requirements: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkGetBufferMemoryRequirements\0",
+                )?,
+                get_image_memory_requirements: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkGetImageMemoryRequirements\0",
+                )?,
+                bind_buffer_memory: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkBindBufferMemory\0",
+                )?,
+                bind_image_memory: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkBindImageMemory\0",
+                )?,
+                create_command_pool: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkCreateCommandPool\0",
+                )?,
+                destroy_command_pool: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkDestroyCommandPool\0",
+                )?,
+                allocate_command_buffers: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkAllocateCommandBuffers\0",
+                )?,
+                free_command_buffers: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkFreeCommandBuffers\0",
+                )?,
+                begin_command_buffer: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkBeginCommandBuffer\0",
+                )?,
+                end_command_buffer: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkEndCommandBuffer\0",
+                )?,
+                cmd_pipeline_barrier: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkCmdPipelineBarrier\0",
+                )?,
+                cmd_copy_image_to_buffer: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkCmdCopyImageToBuffer\0",
+                )?,
+                queue_submit: load_device_fn(get_device_proc, device, b"vkQueueSubmit\0")?,
+                queue_wait_idle: load_device_fn(get_device_proc, device, b"vkQueueWaitIdle\0")?,
+                create_fence: load_device_fn(get_device_proc, device, b"vkCreateFence\0")?,
+                destroy_fence: load_device_fn(get_device_proc, device, b"vkDestroyFence\0")?,
+                wait_for_fences: load_device_fn(
+                    get_device_proc,
+                    device,
+                    b"vkWaitForFences\0",
                 )?,
             })
         }
