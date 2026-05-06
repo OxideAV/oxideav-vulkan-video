@@ -37,6 +37,12 @@ pub const VK_KHR_VIDEO_DECODE_AV1_NAME: &str = "VK_KHR_video_decode_av1";
 pub const VK_KHR_VIDEO_ENCODE_QUEUE_NAME: &str = "VK_KHR_video_encode_queue";
 pub const VK_KHR_VIDEO_ENCODE_H264_NAME: &str = "VK_KHR_video_encode_h264";
 pub const VK_KHR_VIDEO_ENCODE_H265_NAME: &str = "VK_KHR_video_encode_h265";
+/// `VK_KHR_synchronization2` — required transitively by
+/// `VK_KHR_video_queue` (the video extensions are specified in terms
+/// of the sync2 stage / access bit families). Promoted to core in
+/// Vulkan 1.3 but still has to be enabled by name when targeting
+/// Vulkan 1.2 (the API level Round 2+ requests).
+pub const VK_KHR_SYNCHRONIZATION_2_NAME: &str = "VK_KHR_synchronization2";
 
 // ─────────────────────────── PhysicalDeviceProperties (subset) ───────────────
 

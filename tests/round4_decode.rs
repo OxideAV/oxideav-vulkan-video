@@ -4,21 +4,24 @@
 //!
 //! # Why does this test fork?
 //!
-//! On the dev box (NVIDIA RTX 5080, driver 580.95.05) the Vulkan
-//! driver currently crashes with a SIGSEGV inside `libnvidia-glcore`
-//! when `vkQueueSubmit` executes a `vkCmdDecodeVideoKHR` for our
-//! synthetic IDR fixture. The crash is reproducible, happens deep
-//! inside the proprietary driver after our command buffer is fully
-//! validated and accepted by the Vulkan loader, and isn't catchable
-//! from Rust (it's a hardware fault, not a panic).
+//! Originally, on the dev box (NVIDIA RTX 5080, driver 580.95.05) the
+//! Vulkan driver was SIGSEGV'ing inside `libnvidia-glcore` when
+//! `vkQueueSubmit` executed our `vkCmdDecodeVideoKHR`. The
+//! investigation (see CHANGELOG Round 4 — "Fixed" entry) pinned the
+//! crash on incorrect API usage on our side: the DPB image was
+//! transitioned to `VIDEO_DECODE_DST_KHR` instead of
+//! `VIDEO_DECODE_DPB_KHR` for the setup-reference slot, the image
+//! views used a multi-aspect mask that the NV12 format doesn't
+//! permit, `VK_KHR_synchronization2` wasn't enabled alongside the
+//! video extensions, and the `VideoSession::drop` dispatch went
+//! through a dangling `&Device` borrow. With those fixed the decode
+//! actually succeeds and produces an output that matches the ffmpeg
+//! reference YUV bit-for-bit.
 //!
-//! To keep this test suite green we fork a child process that
-//! attempts the full decode pipeline. If the child crashes (signal),
-//! we record the milestone reached and treat the test as a soft pass
-//! — the pipeline is wired correctly through `vkEndCommandBuffer`
-//! per our internal trace logs. If a future driver release fixes the
-//! crash, the child will write the decoded frame to a side-channel
-//! file and the parent can validate pixel content there.
+//! We still fork a child process to run the helper — that way if a
+//! future driver regression brings the crash back, the parent runner
+//! survives, the test fails loudly with the signal number, and the
+//! exact misuse pattern that re-emerged is easier to track down.
 
 #![cfg(any(target_os = "linux", target_os = "windows"))]
 
@@ -214,26 +217,32 @@ fn h264_decoder_attempts_decode() {
 
     if !status.success() {
         if let Some(sig) = status_signal(&status) {
-            eprintln!(
+            // The crash mode that Round 4 originally hit was an
+            // NVIDIA-driver-side SIGSEGV during `vkQueueSubmit`.
+            // The investigation pinned that to incorrect API usage
+            // (DPB image layout, multi-planar aspect mask, missing
+            // `VK_KHR_synchronization2`, dangling `&Device` borrow
+            // on the video-session destructor) and fixed each of
+            // them. If a future driver regression brings the crash
+            // back, surface the signal explicitly so we don't
+            // silently regress.
+            panic!(
                 "vulkan-video round4: helper crashed with signal {sig} \
-                 (this is a known issue on the NVIDIA driver — \
-                 the decode pipeline is wired through `vkEndCommandBuffer` \
-                 but `vkQueueSubmit` triggers a SIGSEGV inside libnvidia-glcore). \
-                 Treating as soft fail."
+                 (likely a driver/SDK regression; previously fixed by \
+                 transitioning DPB to VIDEO_DECODE_DPB_KHR even in \
+                 coincide mode and decoupling VideoSession::drop from \
+                 the dangling parent &Device borrow)"
             );
-            return;
         }
         if let Some(code) = status.code() {
-            eprintln!("vulkan-video round4: helper exited with code {code}");
+            panic!("vulkan-video round4: helper exited with code {code}");
         }
-        return;
+        panic!("vulkan-video round4: helper exited abnormally");
     }
 
     // Helper succeeded — read back the decoded frame and validate.
-    let Ok(decoded) = std::fs::read(&output_path) else {
-        eprintln!("vulkan-video round4: helper succeeded but produced no output file");
-        return;
-    };
+    let decoded = std::fs::read(&output_path)
+        .expect("vulkan-video round4: helper exited 0 but produced no output file");
     eprintln!(
         "vulkan-video round4: helper produced {} bytes",
         decoded.len()

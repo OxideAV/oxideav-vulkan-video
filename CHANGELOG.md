@@ -7,6 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — Round 4 SIGSEGV diagnosis + repair
+
+The Round 4 `vkQueueSubmit`-time NVIDIA SIGSEGV (RTX 5080 / driver
+580.95.05) was reproduced under
+`VK_LAYER_PATH=… VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation`
+and pinned on five distinct API misuses on our side. Each
+violation matches a concrete VUID; each is fixed in-place. With
+all five fixed the decode runs cleanly through `vkQueueSubmit`,
+the decoded NV12 frame matches the ffmpeg reference YUV
+**bit-for-bit** (mean abs diff = `0.00/255`), and the
+`h264_decoder_attempts_decode` integration test exits 0.
+
+1. **VUID-vkCmdDecodeVideoKHR-pDecodeInfo-07254 / 07253** — the
+   DPB image was transitioned to
+   `VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR` before the decode in
+   coincide mode. The spec requires the picture-resource bound to a
+   non-NULL `pSetupReferenceSlot` to be in
+   `VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR` *even when DPB and dst
+   alias each other*. NVIDIA's driver doesn't validate the layout
+   itself; instead it walks the slot's image binding via the
+   layout-tracker and dereferences a stale pointer when the
+   tracker says "this is a DST", crashing inside
+   `libnvidia-glcore` at `+0xea4ac4`. Fix: always transition to
+   `VIDEO_DECODE_DPB_KHR` for the DPB image, and adjust the post-
+   decode → transfer barrier accordingly.
+2. **VUID-VkImageViewCreateInfo-subresourceRange-07818** — the
+   image views used `VK_IMAGE_ASPECT_PLANE_0_BIT |
+   VK_IMAGE_ASPECT_PLANE_1_BIT` for an NV12 (multi-planar) view,
+   which is invalid; multi-planar views with both plane bits set
+   are reserved for plane-disjoint VkImage instances. Fix: use
+   `VK_IMAGE_ASPECT_COLOR_BIT` for the all-planes view, and keep
+   the per-plane bits scoped to the `VkBufferImageCopy::image_subresource`
+   regions where they're correct.
+3. **VUID-vkCreateDevice-ppEnabledExtensionNames-01387** —
+   `VK_KHR_video_queue` and `VK_KHR_video_decode_queue` are
+   specified in terms of the sync2 stage / access-mask families
+   and require `VK_KHR_synchronization2` to be enabled alongside
+   them. Fix: add a `VK_KHR_SYNCHRONIZATION_2_NAME` constant in
+   `physical_device` and prepend it to the device's
+   `pp_enabled_extension_names` list in `decoder::DecoderState::create`.
+4. **VUID-vkCmdCopyImageToBuffer-srcImage-00186 +
+   VkImageMemoryBarrier-oldLayout-01212** — in coincide mode the
+   DPB image doubles as the post-decode `vkCmdCopyImageToBuffer`
+   source, so the image needs `VK_IMAGE_USAGE_TRANSFER_SRC_BIT` on
+   creation. Fix: OR `VK_IMAGE_USAGE_TRANSFER_SRC_BIT` into the
+   coincide-path DPB usage flags.
+5. **VUID-vkCmdCopyImageToBuffer-pRegions-00183** — the
+   `VkBufferImageCopy::buffer_row_length` for the chroma plane was
+   set to `width`, but the spec measures `buffer_row_length` in
+   *texels of the source plane*. NV12 plane 1 (R8G8) is half-width
+   half-height with 2 bytes/texel, so the texel-stride is
+   `width / 2`, not `width`; using `width` here told the driver to
+   skip 2× the real bytes/row and overran the staging buffer by
+   ~38 KiB. Fix: store `chroma_stride` as plane-1 texels-per-row
+   (= `width / 2`) and double it when computing the host-side byte
+   offset during readback.
+
+A sixth crash uncovered along the way: `VideoSession::drop` was
+dispatching `vkDestroyVideoSessionKHR` through a `&Device` borrow
+that had been transmuted to `'static` from a *local* binding before
+the session was constructed, then invalidated by the move of that
+local into `DecoderState::device`. Field-order tear-down then ran
+the session's `Drop` last, dereferencing a dangling pointer for the
+function table. Fix: a new `VideoSession::detach` API hands the
+handle + bound-memory list back to the caller and neuters the
+session's `Drop`; `DecoderState::drop` calls it through `&self.device`
+so the dispatch goes through the *current* (still-owned) device.
+
+The Round-4 helper subprocess and the parent's signal-isolating
+fork wrapper are kept — they're now belts-and-braces for any
+future driver/SDK regression: if the crash returns, the parent
+panics with the signal number rather than silently regressing.
+
+#### Diagnostics
+- New per-field offset cross-checks (`tests/struct_sizes.rs` —
+  `h264_std_struct_field_offsets_match_c_abi` and
+  `vulkan_round4_struct_field_offsets_match_c_abi`) verify every
+  Vulkan / std-video struct's field offsets against the C ABI from
+  the system Khronos headers, not just the trailing `sizeof`.
+  These caught nothing on the dev box (every struct's layout
+  matches byte-for-byte) but provide a regression guard for any
+  future field-shift bug — the kind that would manifest as another
+  "driver crashes deep inside its own dispatch".
+
+#### Validation results
+- Validation layers were enabled by setting `VK_LAYER_PATH` to a
+  manifest pointing at the locally-installed
+  `libVkLayer_khronos_validation.so` and
+  `VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation`. The layer's
+  output, captured to `stderr` of the helper subprocess, surfaced
+  the seven distinct VUIDs above. After the fixes the helper now
+  runs end-to-end with **zero VUID violations** and exit code 0.
+
 ### Changed — Round 7
 
 - `H264VkDecoder::make` honours `CodecParameters::device_index`.

@@ -72,8 +72,8 @@ use oxideav_bitstream::h264::{
 use crate::device::Device;
 use crate::instance::Instance;
 use crate::physical_device::{
-    PhysicalDevice, PhysicalDeviceType, VK_KHR_VIDEO_DECODE_H264_NAME,
-    VK_KHR_VIDEO_DECODE_QUEUE_NAME, VK_KHR_VIDEO_QUEUE_NAME,
+    PhysicalDevice, PhysicalDeviceType, VK_KHR_SYNCHRONIZATION_2_NAME,
+    VK_KHR_VIDEO_DECODE_H264_NAME, VK_KHR_VIDEO_DECODE_QUEUE_NAME, VK_KHR_VIDEO_QUEUE_NAME,
 };
 use crate::sys::{
     self, StdVideoDecodeH264PictureInfo, StdVideoDecodeH264PictureInfoFlags,
@@ -95,21 +95,21 @@ use crate::sys::{
     VK_API_VERSION_1_2, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_BUFFER_USAGE_VIDEO_DECODE_SRC_BIT_KHR,
     VK_COMMAND_BUFFER_LEVEL_PRIMARY, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
-    VK_IMAGE_ASPECT_PLANE_0_BIT, VK_IMAGE_ASPECT_PLANE_1_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-    VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR,
-    VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_TYPE_2D,
-    VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR,
-    VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D_ARRAY,
-    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-    VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-    VK_QUEUE_FAMILY_IGNORED, VK_SAMPLE_COUNT_1_BIT, VK_SHARING_MODE_EXCLUSIVE,
-    VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-    VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-    VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-    VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-    VK_STRUCTURE_TYPE_SUBMIT_INFO, VK_STRUCTURE_TYPE_VIDEO_BEGIN_CODING_INFO_KHR,
-    VK_STRUCTURE_TYPE_VIDEO_CODING_CONTROL_INFO_KHR,
+    VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_ASPECT_PLANE_0_BIT, VK_IMAGE_ASPECT_PLANE_1_BIT,
+    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_UNDEFINED,
+    VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR, VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR,
+    VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_TYPE_2D, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+    VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR, VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR,
+    VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_HOST_BIT,
+    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_QUEUE_FAMILY_IGNORED,
+    VK_SAMPLE_COUNT_1_BIT, VK_SHARING_MODE_EXCLUSIVE, VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+    VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO, VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+    VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO, VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+    VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+    VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, VK_STRUCTURE_TYPE_SUBMIT_INFO,
+    VK_STRUCTURE_TYPE_VIDEO_BEGIN_CODING_INFO_KHR, VK_STRUCTURE_TYPE_VIDEO_CODING_CONTROL_INFO_KHR,
     VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_DPB_SLOT_INFO_KHR,
     VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_PICTURE_INFO_KHR,
     VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_PROFILE_INFO_KHR,
@@ -285,9 +285,16 @@ struct DecoderState {
 
     width: u32,
     height: u32,
-    /// Stride in bytes used for staging (luma row pitch, also chroma
-    /// row pitch since both are byte-stepped at width for NV12).
+    /// Luma plane row pitch in *bytes* (also = texels, plane 0 is
+    /// 1 byte/texel).
     luma_stride: u32,
+    /// Chroma plane row pitch in *texels* of plane 1 (R8G8 = 2
+    /// bytes/texel). For NV12 a packed row is `width/2` chroma
+    /// texels = `width` bytes. Vulkan's
+    /// `VkBufferImageCopy::buffer_row_length` is measured in texels of
+    /// the source plane, not bytes — using `width` here would tell
+    /// the driver to skip 2× the real bytes/row and overrun the
+    /// staging buffer (VUID-vkCmdCopyImageToBuffer-pRegions-00183).
     chroma_stride: u32,
     chroma_height: u32,
 
@@ -320,11 +327,29 @@ impl Drop for DecoderState {
         // after this on field declaration order).
         let dfns: &crate::device::DeviceFns = self.device.fns();
 
-        // Wait for any pending work.
+        // Wait for *every* queue, not just our video queue, so that
+        // any host-visible memory copy issued via TRANSFER on the
+        // same queue family (or any other family if a future round
+        // splits it) is fully retired before we tear handles down.
+        // NVIDIA's session destructor is sensitive to in-flight
+        // command buffers referencing the bound DPB.
         unsafe {
             (dfns.queue_wait_idle)(self.device.queue(self.queue_family_index).handle());
         }
 
+        // Tear down in spec order:
+        //   command buffers → command pool → session params →
+        //   session → DPB / output images + their views → buffers →
+        //   bound memory.
+        //
+        // The video session is destroyed BEFORE any image whose
+        // memory backed a DPB / output picture-resource bound on it.
+        // NVIDIA's `vkDestroyVideoSessionKHR` walks the most-
+        // recently-used DPB binding and dereferences the image's
+        // backing memory; if we've already freed the image (and its
+        // memory) it crashes inside the session destructor —
+        // exactly the SIGSEGV the gdb backtrace points at.
+        // Destroy session_params then session FIRST.
         unsafe {
             if !self.command_buffer.is_null() && !self.command_pool.is_null() {
                 (dfns.free_command_buffers)(
@@ -333,43 +358,11 @@ impl Drop for DecoderState {
                     1,
                     &self.command_buffer,
                 );
+                self.command_buffer = ptr::null_mut();
             }
             if !self.command_pool.is_null() {
                 (dfns.destroy_command_pool)(self.device.handle(), self.command_pool, ptr::null());
-            }
-            if !self.bitstream_buffer.is_null() {
-                (dfns.destroy_buffer)(self.device.handle(), self.bitstream_buffer, ptr::null());
-            }
-            if !self.bitstream_memory.is_null() {
-                (dfns.free_memory)(self.device.handle(), self.bitstream_memory, ptr::null());
-            }
-            if !self.staging_buffer.is_null() {
-                (dfns.destroy_buffer)(self.device.handle(), self.staging_buffer, ptr::null());
-            }
-            if !self.staging_memory.is_null() {
-                (dfns.free_memory)(self.device.handle(), self.staging_memory, ptr::null());
-            }
-            if !self.output_image_view.is_null() {
-                (dfns.destroy_image_view)(
-                    self.device.handle(),
-                    self.output_image_view,
-                    ptr::null(),
-                );
-            }
-            if !self.output_image.is_null() && self.output_image != self.dpb_image {
-                (dfns.destroy_image)(self.device.handle(), self.output_image, ptr::null());
-            }
-            if !self.output_memory.is_null() && self.output_memory != self.dpb_memory {
-                (dfns.free_memory)(self.device.handle(), self.output_memory, ptr::null());
-            }
-            if !self.dpb_image_view.is_null() {
-                (dfns.destroy_image_view)(self.device.handle(), self.dpb_image_view, ptr::null());
-            }
-            if !self.dpb_image.is_null() {
-                (dfns.destroy_image)(self.device.handle(), self.dpb_image, ptr::null());
-            }
-            if !self.dpb_memory.is_null() {
-                (dfns.free_memory)(self.device.handle(), self.dpb_memory, ptr::null());
+                self.command_pool = ptr::null_mut();
             }
             if !self.session_params.is_null() {
                 (dfns.destroy_video_session_parameters_khr)(
@@ -377,13 +370,88 @@ impl Drop for DecoderState {
                     self.session_params,
                     ptr::null(),
                 );
+                self.session_params = ptr::null_mut();
             }
         }
 
-        // VideoSession's Drop fires when self.session is dropped; that
-        // happens before self.device because field declaration order
-        // is preserved on drop.
-        self.session = None;
+        // Tear down the video session via OUR `&self.device`, not
+        // via the `&Device` borrow embedded inside `VideoSession`.
+        // The latter was hijacked-to-`'static` during construction
+        // and points to the *original* stack address of the local
+        // `device` binding before it was moved into
+        // `DecoderState::device` — that pointer is dangling by now,
+        // and dispatching through `(self.session.device.fns()).destroy_video_session_khr`
+        // dereferences garbage. The detach API below transfers
+        // ownership of the handle and bound-memory list to us so the
+        // session's own `Drop` becomes a no-op.
+        if let Some(mut session) = self.session.take() {
+            let (session_handle, bound_memory) = session.detach();
+            unsafe {
+                if !session_handle.is_null() {
+                    (dfns.destroy_video_session_khr)(
+                        self.device.handle(),
+                        session_handle,
+                        ptr::null(),
+                    );
+                }
+                for m in bound_memory {
+                    if !m.is_null() {
+                        (dfns.free_memory)(self.device.handle(), m, ptr::null());
+                    }
+                }
+            }
+            // Drop the now-empty VideoSession — its Drop sees
+            // `handle.is_null()` and `bound_memory.is_empty()` and
+            // returns without touching the (dangling) device borrow.
+            drop(session);
+        }
+
+        unsafe {
+            if !self.bitstream_buffer.is_null() {
+                (dfns.destroy_buffer)(self.device.handle(), self.bitstream_buffer, ptr::null());
+                self.bitstream_buffer = ptr::null_mut();
+            }
+            if !self.bitstream_memory.is_null() {
+                (dfns.free_memory)(self.device.handle(), self.bitstream_memory, ptr::null());
+                self.bitstream_memory = ptr::null_mut();
+            }
+            if !self.staging_buffer.is_null() {
+                (dfns.destroy_buffer)(self.device.handle(), self.staging_buffer, ptr::null());
+                self.staging_buffer = ptr::null_mut();
+            }
+            if !self.staging_memory.is_null() {
+                (dfns.free_memory)(self.device.handle(), self.staging_memory, ptr::null());
+                self.staging_memory = ptr::null_mut();
+            }
+            if !self.output_image_view.is_null() {
+                (dfns.destroy_image_view)(
+                    self.device.handle(),
+                    self.output_image_view,
+                    ptr::null(),
+                );
+                self.output_image_view = ptr::null_mut();
+            }
+            if !self.output_image.is_null() && self.output_image != self.dpb_image {
+                (dfns.destroy_image)(self.device.handle(), self.output_image, ptr::null());
+            }
+            self.output_image = ptr::null_mut();
+            if !self.output_memory.is_null() && self.output_memory != self.dpb_memory {
+                (dfns.free_memory)(self.device.handle(), self.output_memory, ptr::null());
+            }
+            self.output_memory = ptr::null_mut();
+            if !self.dpb_image_view.is_null() {
+                (dfns.destroy_image_view)(self.device.handle(), self.dpb_image_view, ptr::null());
+                self.dpb_image_view = ptr::null_mut();
+            }
+            if !self.dpb_image.is_null() {
+                (dfns.destroy_image)(self.device.handle(), self.dpb_image, ptr::null());
+                self.dpb_image = ptr::null_mut();
+            }
+            if !self.dpb_memory.is_null() {
+                (dfns.free_memory)(self.device.handle(), self.dpb_memory, ptr::null());
+                self.dpb_memory = ptr::null_mut();
+            }
+        }
     }
 }
 
@@ -686,6 +754,13 @@ impl DecoderState {
             pd,
             qfi,
             &[
+                // VK_KHR_video_queue is specified in terms of sync2
+                // stage / access bits, so the loader's validation
+                // requires sync2 to be enabled alongside it
+                // (VUID-vkCreateDevice-ppEnabledExtensionNames-01387).
+                // sync2 is core in Vulkan 1.3 but Round 2+ requests
+                // 1.2 explicitly, so we list it by name here.
+                VK_KHR_SYNCHRONIZATION_2_NAME,
                 VK_KHR_VIDEO_QUEUE_NAME,
                 VK_KHR_VIDEO_DECODE_QUEUE_NAME,
                 VK_KHR_VIDEO_DECODE_H264_NAME,
@@ -816,9 +891,16 @@ impl DecoderState {
         };
 
         // ── DPB image (2D array, layer per DPB slot) ────────────
+        // When DPB and output coincide we also use this image as the
+        // source of the post-decode `vkCmdCopyImageToBuffer`, so
+        // `VK_IMAGE_USAGE_TRANSFER_SRC_BIT` has to be on the usage
+        // flags (VUID-vkCmdCopyImageToBuffer-srcImage-00186 +
+        // VUID-VkImageMemoryBarrier-oldLayout-01212).
         let dpb_layers = dpb_slots;
         let dpb_usage = if coincide {
-            VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR | VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR
+            VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR
+                | VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR
+                | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
         } else {
             VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR
         };
@@ -907,6 +989,13 @@ impl DecoderState {
         }
 
         // DPB image view — base layer 0 (our setup slot is always 0).
+        // For a multi-planar format (NV12 = G8_B8R8_2PLANE_420_UNORM)
+        // an image view that covers all planes uses
+        // `VK_IMAGE_ASPECT_COLOR_BIT`. The per-plane bits
+        // (PLANE_0_BIT / PLANE_1_BIT) are reserved for plane-disjoint
+        // views; specifying both is invalid
+        // (VUID-VkImageViewCreateInfo-subresourceRange-07818 — only
+        // one plane bit is permitted per view).
         let dpb_view_ci = VkImageViewCreateInfo {
             s_type: VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             p_next: ptr::null(),
@@ -916,7 +1005,7 @@ impl DecoderState {
             format: VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
             components: VkComponentMapping::default(),
             subresource_range: VkImageSubresourceRange {
-                aspect_mask: VK_IMAGE_ASPECT_PLANE_0_BIT | VK_IMAGE_ASPECT_PLANE_1_BIT,
+                aspect_mask: VK_IMAGE_ASPECT_COLOR_BIT,
                 base_mip_level: 0,
                 level_count: 1,
                 base_array_layer: 0,
@@ -943,6 +1032,8 @@ impl DecoderState {
         let (output_image, output_memory, output_image_view) = if coincide {
             // Reuse — but we need a separate single-layer view for the
             // dst_picture_resource (NVIDIA accepts the array view though).
+            // Same multi-planar aspect-mask rule as the DPB view above:
+            // VK_IMAGE_ASPECT_COLOR_BIT for the all-planes view.
             let output_view_ci = VkImageViewCreateInfo {
                 s_type: VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
                 p_next: ptr::null(),
@@ -952,7 +1043,7 @@ impl DecoderState {
                 format: VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
                 components: VkComponentMapping::default(),
                 subresource_range: VkImageSubresourceRange {
-                    aspect_mask: VK_IMAGE_ASPECT_PLANE_0_BIT | VK_IMAGE_ASPECT_PLANE_1_BIT,
+                    aspect_mask: VK_IMAGE_ASPECT_COLOR_BIT,
                     base_mip_level: 0,
                     level_count: 1,
                     base_array_layer: 0,
@@ -1037,7 +1128,7 @@ impl DecoderState {
                 format: VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
                 components: VkComponentMapping::default(),
                 subresource_range: VkImageSubresourceRange {
-                    aspect_mask: VK_IMAGE_ASPECT_PLANE_0_BIT | VK_IMAGE_ASPECT_PLANE_1_BIT,
+                    aspect_mask: VK_IMAGE_ASPECT_COLOR_BIT,
                     base_mip_level: 0,
                     level_count: 1,
                     base_array_layer: 0,
@@ -1141,10 +1232,32 @@ impl DecoderState {
         }
 
         // ── Staging buffer (host-visible, big enough for NV12) ──
+        //
+        // NV12 = `VK_FORMAT_G8_B8R8_2PLANE_420_UNORM`:
+        //   * plane 0 (luma) — 1 byte per texel, width × height texels
+        //   * plane 1 (chroma) — 2 bytes per texel (R8G8 interleaved
+        //     U+V), (width/2) × (height/2) texels
+        //
+        // `buffer_row_length` in `VkBufferImageCopy` is measured in
+        // *texels* of the source plane, not bytes. So plane-1's
+        // tightly-packed row length is width/2 texels (= width bytes
+        // since each chroma texel is 2 bytes). Total staging size
+        // therefore is `width*height + (width/2)*(height/2)*2` =
+        // `width*height + width*height/2` = `width*height*3/2` —
+        // standard 4:2:0 byte budget.
+        //
+        // Previously we used `chroma_stride = max_w` (i.e. row length
+        // = full width texels, 2 bytes/texel) which made the GPU
+        // address-space stride for plane 1 twice the real packed
+        // stride and overran the staging buffer by ~38400 bytes
+        // (VUID-vkCmdCopyImageToBuffer-pRegions-00183).
         let luma_stride = max_w;
-        let chroma_stride = max_w; // NV12: interleaved UV pair = 2 bytes per chroma sample, but stride width maps as luma width
+        let chroma_stride_texels = max_w.div_ceil(2);
         let chroma_height = max_h.div_ceil(2);
-        let staging_size = (luma_stride * max_h + chroma_stride * chroma_height) as u64;
+        // bytes-per-row for staging budget: luma 1 byte/texel,
+        // chroma 2 bytes/texel.
+        let staging_size = (luma_stride as u64) * (max_h as u64)
+            + (chroma_stride_texels as u64) * 2 * (chroma_height as u64);
         let staging_size = staging_size.max(1024);
 
         let staging_ci = VkBufferCreateInfo {
@@ -1286,7 +1399,7 @@ impl DecoderState {
             width: sps.display_width().min(max_w),
             height: sps.display_height().min(max_h),
             luma_stride,
-            chroma_stride,
+            chroma_stride: chroma_stride_texels,
             chroma_height,
             coincide,
             bitstream_offset_alignment: caps.min_bitstream_buffer_offset_alignment.max(1),
@@ -1494,7 +1607,19 @@ impl DecoderState {
         }
 
         // Transition DPB image (and output image, if distinct) from
-        // UNDEFINED to VIDEO_DECODE_DPB_KHR / DECODE_DST_KHR.
+        // UNDEFINED to the layout the decode pass expects.
+        //
+        // Setup-reference slots — which our IDR uses to populate DPB
+        // slot 0 — require the picture-resource subresource to be in
+        // `VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR` at decode time, even
+        // when the same image subresource also serves as the decode
+        // destination (coincide mode). NVIDIA's driver SIGSEGVs when
+        // we transition into DST_KHR instead because it dereferences
+        // through what it thinks is a DPB slot pointer that the layout
+        // tracker said was an output target — exactly the
+        // VUID-vkCmdDecodeVideoKHR-pDecodeInfo-07254/07253 violation
+        // we now flag at validation time. Always go to DPB_KHR; with
+        // coincide=true the same subresource doubles as the dst.
         let mut barriers: Vec<VkImageMemoryBarrier> = Vec::new();
         barriers.push(VkImageMemoryBarrier {
             s_type: VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -1502,16 +1627,12 @@ impl DecoderState {
             src_access_mask: 0,
             dst_access_mask: VK_ACCESS_MEMORY_WRITE_BIT,
             old_layout: VK_IMAGE_LAYOUT_UNDEFINED,
-            new_layout: if self.coincide {
-                VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR
-            } else {
-                VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR
-            },
+            new_layout: VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR,
             src_queue_family_index: VK_QUEUE_FAMILY_IGNORED,
             dst_queue_family_index: VK_QUEUE_FAMILY_IGNORED,
             image: self.dpb_image,
             subresource_range: VkImageSubresourceRange {
-                aspect_mask: VK_IMAGE_ASPECT_PLANE_0_BIT | VK_IMAGE_ASPECT_PLANE_1_BIT,
+                aspect_mask: VK_IMAGE_ASPECT_COLOR_BIT,
                 base_mip_level: 0,
                 level_count: 1,
                 base_array_layer: 0,
@@ -1530,7 +1651,7 @@ impl DecoderState {
                 dst_queue_family_index: VK_QUEUE_FAMILY_IGNORED,
                 image: self.output_image,
                 subresource_range: VkImageSubresourceRange {
-                    aspect_mask: VK_IMAGE_ASPECT_PLANE_0_BIT | VK_IMAGE_ASPECT_PLANE_1_BIT,
+                    aspect_mask: VK_IMAGE_ASPECT_COLOR_BIT,
                     base_mip_level: 0,
                     level_count: 1,
                     base_array_layer: 0,
@@ -1583,10 +1704,17 @@ impl DecoderState {
         }
 
         // Transition output image to TRANSFER_SRC_OPTIMAL. After the
-        // decode submission the output image (whether aliased onto the
-        // DPB on coincide drivers or a distinct image otherwise) is in
-        // VIDEO_DECODE_DST_KHR — see the pre-decode barrier above.
-        let src_layout = VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR;
+        // decode submission the image's layout depends on coincide
+        // mode: with coincide=true we left the image in DPB_KHR (the
+        // setup-reference slot's required layout, which happens to
+        // also be the layout the decode wrote into); with
+        // coincide=false the dst image was distinct and transitioned
+        // to DST_KHR explicitly above.
+        let src_layout = if self.coincide {
+            VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR
+        } else {
+            VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR
+        };
         let to_xfer = VkImageMemoryBarrier {
             s_type: VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
             p_next: ptr::null(),
@@ -1598,7 +1726,7 @@ impl DecoderState {
             dst_queue_family_index: VK_QUEUE_FAMILY_IGNORED,
             image: self.output_image,
             subresource_range: VkImageSubresourceRange {
-                aspect_mask: VK_IMAGE_ASPECT_PLANE_0_BIT | VK_IMAGE_ASPECT_PLANE_1_BIT,
+                aspect_mask: VK_IMAGE_ASPECT_COLOR_BIT,
                 base_mip_level: 0,
                 level_count: 1,
                 base_array_layer: 0,
@@ -1670,19 +1798,29 @@ impl DecoderState {
             );
         }
 
-        // Transition output back to a quiescent state for the next decode.
+        // Transition output back to a quiescent state for the next
+        // decode. The same coincide rule as the pre-decode barrier:
+        // when DPB and dst alias each other we leave the image in
+        // DPB_KHR so the next decode can re-use the slot without
+        // another transition; when distinct, DST_KHR (which is what
+        // the next decode's pre-barrier expects).
+        let next_layout = if self.coincide {
+            VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR
+        } else {
+            VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR
+        };
         let to_quiescent = VkImageMemoryBarrier {
             s_type: VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
             p_next: ptr::null(),
             src_access_mask: VK_ACCESS_TRANSFER_READ_BIT,
             dst_access_mask: VK_ACCESS_MEMORY_READ_BIT,
             old_layout: VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            new_layout: VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR,
+            new_layout: next_layout,
             src_queue_family_index: VK_QUEUE_FAMILY_IGNORED,
             dst_queue_family_index: VK_QUEUE_FAMILY_IGNORED,
             image: self.output_image,
             subresource_range: VkImageSubresourceRange {
-                aspect_mask: VK_IMAGE_ASPECT_PLANE_0_BIT | VK_IMAGE_ASPECT_PLANE_1_BIT,
+                aspect_mask: VK_IMAGE_ASPECT_COLOR_BIT,
                 base_mip_level: 0,
                 level_count: 1,
                 base_array_layer: 0,
@@ -1772,11 +1910,13 @@ impl DecoderState {
                 std::ptr::copy_nonoverlapping(src, dst, self.width as usize);
             }
             // De-interleave NV12 chroma: UV-pair-per-2x2-luma-block.
+            // `chroma_stride` is in texels of plane 1 (R8G8); each
+            // texel is 2 bytes, so the byte stride is `2*cstride`.
             let chroma_off = (self.luma_stride as usize) * (self.height as usize);
-            let cstride = self.chroma_stride as usize;
+            let cstride_bytes = (self.chroma_stride as usize) * 2;
             for y in 0..ch {
                 for x in 0..cw {
-                    let src_pair = host.add(chroma_off + y * cstride + x * 2);
+                    let src_pair = host.add(chroma_off + y * cstride_bytes + x * 2);
                     let u = *src_pair;
                     let v = *src_pair.add(1);
                     frame_u[y * cw + x] = u;

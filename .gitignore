@@ -1,0 +1,5 @@
+/target/
+
+# Round 4 decode helper writes its output here when run; the file is
+# regenerated on every test invocation and shouldn't be checked in.
+/tests/fixtures/decoded_output.yuv

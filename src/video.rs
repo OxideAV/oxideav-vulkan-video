@@ -324,6 +324,19 @@ impl<'device> VideoSession<'device> {
         self.profile_idc
     }
 
+    /// Take ownership of the session handle + bound memory list,
+    /// neutering this `VideoSession` so its `Drop` becomes a no-op.
+    /// The caller assumes responsibility for calling
+    /// `vkDestroyVideoSessionKHR` and `vkFreeMemory` for each
+    /// returned handle. Used by `DecoderState::drop` to avoid
+    /// dispatching through a possibly-dangling `&Device` borrow when
+    /// the parent struct's field-order tear-down is in progress.
+    pub fn detach(&mut self) -> (VkVideoSessionKHR, Vec<VkDeviceMemory>) {
+        let handle = std::mem::replace(&mut self.handle, ptr::null_mut());
+        let memory = std::mem::take(&mut self.bound_memory);
+        (handle, memory)
+    }
+
     /// Query memory requirements for this session via
     /// `vkGetVideoSessionMemoryRequirementsKHR`.
     ///
