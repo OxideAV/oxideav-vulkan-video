@@ -37,7 +37,10 @@ fn engine_info_per_device_metadata_is_consistent() {
     for d in &devs {
         assert!(!d.name.is_empty(), "device name must not be empty");
         assert!(d.api_version.is_some(), "api_version must be reported");
-        assert!(d.driver_version.is_some(), "driver_version must be reported");
+        assert!(
+            d.driver_version.is_some(),
+            "driver_version must be reported"
+        );
         let keys: Vec<_> = d.extra.iter().map(|(k, _)| k.as_str()).collect();
         assert!(
             keys.contains(&"vendor_id"),

@@ -20,9 +20,7 @@ fn try_init_instance() -> Option<Instance> {
     match Instance::new("oxideav-vulkan-video-test", VK_API_VERSION_1_2) {
         Ok(i) => Some(i),
         Err(e) => {
-            eprintln!(
-                "oxideav-vulkan-video: skipping (no Vulkan ICD on this host?): {e}"
-            );
+            eprintln!("oxideav-vulkan-video: skipping (no Vulkan ICD on this host?): {e}");
             None
         }
     }
@@ -50,9 +48,7 @@ fn lists_at_least_one_physical_device() {
     let Some(inst) = try_init_instance() else {
         return;
     };
-    let devices = inst
-        .physical_devices()
-        .expect("vkEnumeratePhysicalDevices");
+    let devices = inst.physical_devices().expect("vkEnumeratePhysicalDevices");
     assert!(
         !devices.is_empty(),
         "no Vulkan physical devices reported on a host with a Vulkan ICD"
@@ -64,9 +60,7 @@ fn physical_device_reports_name_and_vendor() {
     let Some(inst) = try_init_instance() else {
         return;
     };
-    let devices = inst
-        .physical_devices()
-        .expect("vkEnumeratePhysicalDevices");
+    let devices = inst.physical_devices().expect("vkEnumeratePhysicalDevices");
     for d in &devices {
         let props = d.properties();
         assert!(
@@ -90,9 +84,7 @@ fn nvidia_advertises_video_decode_h264() {
     let Some(inst) = try_init_instance() else {
         return;
     };
-    let devices = inst
-        .physical_devices()
-        .expect("vkEnumeratePhysicalDevices");
+    let devices = inst.physical_devices().expect("vkEnumeratePhysicalDevices");
     let mut saw_nvidia = false;
     for d in &devices {
         let props = d.properties();
@@ -118,9 +110,7 @@ fn video_queue_family_indices_smoke() {
     let Some(inst) = try_init_instance() else {
         return;
     };
-    let devices = inst
-        .physical_devices()
-        .expect("vkEnumeratePhysicalDevices");
+    let devices = inst.physical_devices().expect("vkEnumeratePhysicalDevices");
     for d in &devices {
         let props = d.properties();
         let indices = d.video_queue_family_indices();

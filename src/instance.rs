@@ -135,7 +135,8 @@ impl Instance {
         let vt = sys::vtable().map_err(|e| VkError::LoaderUnavailable(e.to_string()))?;
 
         // Strings have to outlive the create call.
-        let app_name_c = CString::new(app_name).unwrap_or_else(|_| CString::new("oxideav").unwrap());
+        let app_name_c =
+            CString::new(app_name).unwrap_or_else(|_| CString::new("oxideav").unwrap());
         let engine_name_c = CString::new("oxideav-vulkan-video").unwrap();
 
         let app_info = VkApplicationInfo {
@@ -201,8 +202,9 @@ impl Instance {
         // SAFETY: standard two-call enumerate pattern. Passing
         // null for the device array returns just the count in
         // `count`.
-        let result =
-            unsafe { (self.fns.enumerate_physical_devices)(self.handle, &mut count, ptr::null_mut()) };
+        let result = unsafe {
+            (self.fns.enumerate_physical_devices)(self.handle, &mut count, ptr::null_mut())
+        };
         if result != VK_SUCCESS {
             return Err(VkError::Result {
                 op: "vkEnumeratePhysicalDevices",

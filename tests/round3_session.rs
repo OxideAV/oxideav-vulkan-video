@@ -32,9 +32,7 @@ fn try_init_instance() -> Option<Instance> {
 /// video extension AND has at least one video-decode-capable queue
 /// family. Returns `(device_index, queue_family_index)` so the
 /// caller can re-borrow the `Vec<PhysicalDevice>` cheaply.
-fn pick_video_capable<'i>(
-    devices: &[PhysicalDevice<'i>],
-) -> Option<(usize, u32)> {
+fn pick_video_capable<'i>(devices: &[PhysicalDevice<'i>]) -> Option<(usize, u32)> {
     for (i, d) in devices.iter().enumerate() {
         let support = d.supports_video_extensions();
         if !support.queue_khr || !support.decode_h264 {
@@ -162,9 +160,14 @@ fn h264_decode_session_creates() {
     )
     .expect("vkCreateVideoSessionKHR");
 
-    assert!(!session.handle().is_null(), "session handle should not be null");
+    assert!(
+        !session.handle().is_null(),
+        "session handle should not be null"
+    );
 
-    let reqs = session.memory_requirements().expect("vkGetVideoSessionMemoryRequirementsKHR");
+    let reqs = session
+        .memory_requirements()
+        .expect("vkGetVideoSessionMemoryRequirementsKHR");
     eprintln!(
         "video session created with {} memory requirement(s)",
         reqs.len()
@@ -230,9 +233,7 @@ fn h264_decode_session_memory_binds() {
             // the test as skipped rather than failed — Round 3
             // accepts session creation as the must-land milestone
             // and treats memory binding as stretch.
-            eprintln!(
-                "skipping memory-binding stretch: allocate_and_bind_memory returned {e}"
-            );
+            eprintln!("skipping memory-binding stretch: allocate_and_bind_memory returned {e}");
             return;
         }
     };

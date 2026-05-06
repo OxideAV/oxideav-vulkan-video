@@ -7,15 +7,30 @@ use oxideav_vulkan_video::sys::*;
 fn h264_std_struct_sizes_match_c_abi() {
     assert_eq!(std::mem::size_of::<StdVideoH264SpsFlags>(), 4);
     assert_eq!(std::mem::size_of::<StdVideoH264PpsFlags>(), 4);
-    assert_eq!(std::mem::size_of::<StdVideoH264SequenceParameterSet>(), 88,
-        "StdVideoH264SequenceParameterSet size mismatch");
-    assert_eq!(std::mem::size_of::<StdVideoH264PictureParameterSet>(), 24,
-        "StdVideoH264PictureParameterSet size mismatch");
+    assert_eq!(
+        std::mem::size_of::<StdVideoH264SequenceParameterSet>(),
+        88,
+        "StdVideoH264SequenceParameterSet size mismatch"
+    );
+    assert_eq!(
+        std::mem::size_of::<StdVideoH264PictureParameterSet>(),
+        24,
+        "StdVideoH264PictureParameterSet size mismatch"
+    );
     assert_eq!(std::mem::size_of::<StdVideoDecodeH264PictureInfo>(), 20);
     assert_eq!(std::mem::size_of::<StdVideoDecodeH264ReferenceInfo>(), 16);
-    assert_eq!(std::mem::size_of::<VkVideoDecodeH264SessionParametersCreateInfoKHR>(), 32);
-    assert_eq!(std::mem::size_of::<VkVideoDecodeH264SessionParametersAddInfoKHR>(), 48);
-    assert_eq!(std::mem::size_of::<VkVideoSessionParametersCreateInfoKHR>(), 40);
+    assert_eq!(
+        std::mem::size_of::<VkVideoDecodeH264SessionParametersCreateInfoKHR>(),
+        32
+    );
+    assert_eq!(
+        std::mem::size_of::<VkVideoDecodeH264SessionParametersAddInfoKHR>(),
+        48
+    );
+    assert_eq!(
+        std::mem::size_of::<VkVideoSessionParametersCreateInfoKHR>(),
+        40
+    );
 }
 
 #[test]

@@ -28,11 +28,10 @@ use crate::instance::VkError;
 use crate::physical_device::PhysicalDevice;
 use crate::sys::{
     self, StdVideoH264LevelIdc, StdVideoH264ProfileIdc, VkBindVideoSessionMemoryInfoKHR,
-    VkDeviceMemory, VkExtensionProperties, VkExtent2D, VkMemoryAllocateInfo,
-    VkMemoryRequirements, VkPhysicalDeviceMemoryProperties, VkVideoCapabilitiesKHR,
-    VkVideoDecodeCapabilitiesKHR, VkVideoDecodeH264CapabilitiesKHR,
-    VkVideoDecodeH264ProfileInfoKHR, VkVideoProfileInfoKHR, VkVideoSessionCreateInfoKHR,
-    VkVideoSessionKHR, VkVideoSessionMemoryRequirementsKHR,
+    VkDeviceMemory, VkExtensionProperties, VkExtent2D, VkMemoryAllocateInfo, VkMemoryRequirements,
+    VkPhysicalDeviceMemoryProperties, VkVideoCapabilitiesKHR, VkVideoDecodeCapabilitiesKHR,
+    VkVideoDecodeH264CapabilitiesKHR, VkVideoDecodeH264ProfileInfoKHR, VkVideoProfileInfoKHR,
+    VkVideoSessionCreateInfoKHR, VkVideoSessionKHR, VkVideoSessionMemoryRequirementsKHR,
     VK_FORMAT_G8_B8R8_2PLANE_420_UNORM, VK_MAX_EXTENSION_NAME_SIZE,
     VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_EXTENSION_NAME,
     VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_SPEC_VERSION,
@@ -41,10 +40,9 @@ use crate::sys::{
     VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_CAPABILITIES_KHR,
     VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_PROFILE_INFO_KHR, VK_STRUCTURE_TYPE_VIDEO_PROFILE_INFO_KHR,
     VK_STRUCTURE_TYPE_VIDEO_SESSION_CREATE_INFO_KHR,
-    VK_STRUCTURE_TYPE_VIDEO_SESSION_MEMORY_REQUIREMENTS_KHR,
+    VK_STRUCTURE_TYPE_VIDEO_SESSION_MEMORY_REQUIREMENTS_KHR, VK_SUCCESS,
     VK_VIDEO_CHROMA_SUBSAMPLING_420_BIT_KHR, VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR,
     VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR, VK_VIDEO_DECODE_H264_PICTURE_LAYOUT_PROGRESSIVE_KHR,
-    VK_SUCCESS,
 };
 
 // ─────────────────────────── VideoCapabilities ───────────────────────────────
@@ -102,9 +100,11 @@ pub fn query_video_decode_h264_capabilities(
     profile_idc: StdVideoH264ProfileIdc,
 ) -> Result<VideoDecodeH264Capabilities, VkError> {
     let fns = physical_device.instance_fns();
-    let get_caps = fns.get_physical_device_video_capabilities_khr.ok_or(
-        VkError::MissingFunction("vkGetPhysicalDeviceVideoCapabilitiesKHR"),
-    )?;
+    let get_caps =
+        fns.get_physical_device_video_capabilities_khr
+            .ok_or(VkError::MissingFunction(
+                "vkGetPhysicalDeviceVideoCapabilitiesKHR",
+            ))?;
 
     // ─ Profile chain ────────────────────────────────────────────
     let h264_profile = VkVideoDecodeH264ProfileInfoKHR {
@@ -213,6 +213,9 @@ impl<'device> VideoSession<'device> {
     ///
     /// `queue_family_index` must reference a video-decode queue
     /// family on the parent device.
+    // matches the C `vkCreateVideoSessionKHR` + H.264 profile parameter set;
+    // we keep the eight inputs to mirror the underlying FFI shape.
+    #[allow(clippy::too_many_arguments)]
     pub fn new_h264_decode(
         device: &'device Device,
         physical_device: &PhysicalDevice<'_>,
@@ -328,9 +331,7 @@ impl<'device> VideoSession<'device> {
     /// fetch. Each entry gives the alignment, size, and acceptable
     /// memory-type bitmask for a single memory bind index that the
     /// caller must satisfy with `vkBindVideoSessionMemoryKHR`.
-    pub fn memory_requirements(
-        &self,
-    ) -> Result<Vec<VkVideoSessionMemoryRequirementsKHR>, VkError> {
+    pub fn memory_requirements(&self) -> Result<Vec<VkVideoSessionMemoryRequirementsKHR>, VkError> {
         let mut count: u32 = 0;
         // SAFETY: count probe with null sized buffer.
         let result = unsafe {

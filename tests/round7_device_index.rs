@@ -56,10 +56,7 @@ fn read_fixture() -> Option<Vec<u8>> {
     match std::fs::read(&p) {
         Ok(b) => Some(b),
         Err(_) => {
-            eprintln!(
-                "vulkan-video round7: fixture missing at {:?}; skipping",
-                p
-            );
+            eprintln!("vulkan-video round7: fixture missing at {:?}; skipping", p);
             None
         }
     }
@@ -129,7 +126,9 @@ fn run_send_packet_skip_submit(
 
 #[test]
 fn device_index_none_uses_first_video_device() {
-    let Some(bytes) = read_fixture() else { return; };
+    let Some(bytes) = read_fixture() else {
+        return;
+    };
     if !vulkan_available() {
         return;
     }
@@ -162,7 +161,9 @@ fn device_index_none_uses_first_video_device() {
 
 #[test]
 fn device_index_zero_explicit_works() {
-    let Some(bytes) = read_fixture() else { return; };
+    let Some(bytes) = read_fixture() else {
+        return;
+    };
     if !vulkan_available() {
         return;
     }
@@ -184,15 +185,17 @@ fn device_index_zero_explicit_works() {
     let pkt = make_packet(bytes);
     match run_send_packet_skip_submit(&mut dec, &pkt) {
         Ok(()) => {}
-        Err(e) => panic!(
-            "expected an explicit with_device_index(0) to construct the pipeline; got: {e}"
-        ),
+        Err(e) => {
+            panic!("expected an explicit with_device_index(0) to construct the pipeline; got: {e}")
+        }
     }
 }
 
 #[test]
 fn device_index_out_of_range_errors() {
-    let Some(bytes) = read_fixture() else { return; };
+    let Some(bytes) = read_fixture() else {
+        return;
+    };
     if !vulkan_available() {
         return;
     }

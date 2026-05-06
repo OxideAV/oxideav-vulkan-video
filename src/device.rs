@@ -28,21 +28,19 @@ use std::ptr;
 use crate::instance::{load_device_fn, VkError};
 use crate::physical_device::PhysicalDevice;
 use crate::sys::{
-    FnVkAllocateCommandBuffers, FnVkAllocateMemory, FnVkBeginCommandBuffer,
-    FnVkBindBufferMemory, FnVkBindImageMemory, FnVkBindVideoSessionMemoryKHR,
-    FnVkCmdBeginVideoCodingKHR, FnVkCmdControlVideoCodingKHR, FnVkCmdCopyImageToBuffer,
-    FnVkCmdDecodeVideoKHR, FnVkCmdEndVideoCodingKHR, FnVkCmdPipelineBarrier,
-    FnVkCreateBuffer, FnVkCreateCommandPool, FnVkCreateFence, FnVkCreateImage,
-    FnVkCreateImageView, FnVkCreateVideoSessionKHR, FnVkCreateVideoSessionParametersKHR,
-    FnVkDestroyBuffer, FnVkDestroyCommandPool, FnVkDestroyDevice, FnVkDestroyFence,
-    FnVkDestroyImage, FnVkDestroyImageView, FnVkDestroyVideoSessionKHR,
-    FnVkDestroyVideoSessionParametersKHR, FnVkEndCommandBuffer, FnVkFreeCommandBuffers,
-    FnVkFreeMemory, FnVkGetBufferMemoryRequirements, FnVkGetDeviceProcAddr,
+    FnVkAllocateCommandBuffers, FnVkAllocateMemory, FnVkBeginCommandBuffer, FnVkBindBufferMemory,
+    FnVkBindImageMemory, FnVkBindVideoSessionMemoryKHR, FnVkCmdBeginVideoCodingKHR,
+    FnVkCmdControlVideoCodingKHR, FnVkCmdCopyImageToBuffer, FnVkCmdDecodeVideoKHR,
+    FnVkCmdEndVideoCodingKHR, FnVkCmdPipelineBarrier, FnVkCreateBuffer, FnVkCreateCommandPool,
+    FnVkCreateFence, FnVkCreateImage, FnVkCreateImageView, FnVkCreateVideoSessionKHR,
+    FnVkCreateVideoSessionParametersKHR, FnVkDestroyBuffer, FnVkDestroyCommandPool,
+    FnVkDestroyDevice, FnVkDestroyFence, FnVkDestroyImage, FnVkDestroyImageView,
+    FnVkDestroyVideoSessionKHR, FnVkDestroyVideoSessionParametersKHR, FnVkEndCommandBuffer,
+    FnVkFreeCommandBuffers, FnVkFreeMemory, FnVkGetBufferMemoryRequirements, FnVkGetDeviceProcAddr,
     FnVkGetDeviceQueue, FnVkGetImageMemoryRequirements, FnVkGetVideoSessionMemoryRequirementsKHR,
     FnVkMapMemory, FnVkQueueSubmit, FnVkQueueWaitIdle, FnVkUnmapMemory, FnVkWaitForFences,
     VkDevice, VkDeviceCreateInfo, VkDeviceQueueCreateInfo, VkQueue,
-    VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-    VK_SUCCESS,
+    VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, VK_SUCCESS,
 };
 
 /// Default per-queue priority. Vulkan only requires the values to lie
@@ -79,8 +77,7 @@ pub(crate) struct DeviceFns {
     pub(crate) unmap_memory: FnVkUnmapMemory,
     pub(crate) create_video_session_khr: FnVkCreateVideoSessionKHR,
     pub(crate) destroy_video_session_khr: FnVkDestroyVideoSessionKHR,
-    pub(crate) get_video_session_memory_requirements_khr:
-        FnVkGetVideoSessionMemoryRequirementsKHR,
+    pub(crate) get_video_session_memory_requirements_khr: FnVkGetVideoSessionMemoryRequirementsKHR,
     pub(crate) bind_video_session_memory_khr: FnVkBindVideoSessionMemoryKHR,
 
     // Round 4 additions
@@ -184,8 +181,7 @@ impl Device {
             .iter()
             .map(|s| CString::new(*s).unwrap_or_else(|_| CString::new("").unwrap()))
             .collect();
-        let ext_ptrs: Vec<*const c_char> =
-            ext_cstrings.iter().map(|s| s.as_ptr()).collect();
+        let ext_ptrs: Vec<*const c_char> = ext_cstrings.iter().map(|s| s.as_ptr()).collect();
 
         let create_info = VkDeviceCreateInfo {
             s_type: VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -277,10 +273,7 @@ impl Drop for Device {
 }
 
 impl DeviceFns {
-    fn resolve(
-        get_device_proc: FnVkGetDeviceProcAddr,
-        device: VkDevice,
-    ) -> Result<Self, VkError> {
+    fn resolve(get_device_proc: FnVkGetDeviceProcAddr, device: VkDevice) -> Result<Self, VkError> {
         // SAFETY: `vkGetDeviceProcAddr` has the spec-declared
         // signature for each name; null is "not present".
         unsafe {
@@ -346,11 +339,7 @@ impl DeviceFns {
                 destroy_buffer: load_device_fn(get_device_proc, device, b"vkDestroyBuffer\0")?,
                 create_image: load_device_fn(get_device_proc, device, b"vkCreateImage\0")?,
                 destroy_image: load_device_fn(get_device_proc, device, b"vkDestroyImage\0")?,
-                create_image_view: load_device_fn(
-                    get_device_proc,
-                    device,
-                    b"vkCreateImageView\0",
-                )?,
+                create_image_view: load_device_fn(get_device_proc, device, b"vkCreateImageView\0")?,
                 destroy_image_view: load_device_fn(
                     get_device_proc,
                     device,
@@ -371,11 +360,7 @@ impl DeviceFns {
                     device,
                     b"vkBindBufferMemory\0",
                 )?,
-                bind_image_memory: load_device_fn(
-                    get_device_proc,
-                    device,
-                    b"vkBindImageMemory\0",
-                )?,
+                bind_image_memory: load_device_fn(get_device_proc, device, b"vkBindImageMemory\0")?,
                 create_command_pool: load_device_fn(
                     get_device_proc,
                     device,
@@ -420,13 +405,8 @@ impl DeviceFns {
                 queue_wait_idle: load_device_fn(get_device_proc, device, b"vkQueueWaitIdle\0")?,
                 create_fence: load_device_fn(get_device_proc, device, b"vkCreateFence\0")?,
                 destroy_fence: load_device_fn(get_device_proc, device, b"vkDestroyFence\0")?,
-                wait_for_fences: load_device_fn(
-                    get_device_proc,
-                    device,
-                    b"vkWaitForFences\0",
-                )?,
+                wait_for_fences: load_device_fn(get_device_proc, device, b"vkWaitForFences\0")?,
             })
         }
     }
 }
-

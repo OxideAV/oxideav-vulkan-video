@@ -107,8 +107,14 @@ fn build_device_info(pd: &PhysicalDevice<'_>) -> Option<HwDeviceInfo> {
     let driver_version = format!("0x{:08x}", props.driver_version);
 
     let extra = vec![
-        ("vendor_id".to_string(), format!("0x{:04x}", props.vendor_id)),
-        ("device_id".to_string(), format!("0x{:04x}", props.device_id)),
+        (
+            "vendor_id".to_string(),
+            format!("0x{:04x}", props.vendor_id),
+        ),
+        (
+            "device_id".to_string(),
+            format!("0x{:04x}", props.device_id),
+        ),
         (
             "device_type".to_string(),
             device_type_label(props.device_type).to_string(),
@@ -181,10 +187,8 @@ fn build_h264_caps(pd: &PhysicalDevice<'_>, video: &VideoExtensionSupport) -> Hw
                 caps.max_width = Some(h264.max_coded_extent.0);
                 caps.max_height = Some(h264.max_coded_extent.1);
                 caps.profiles = vec!["High".to_string()];
-                caps.extra.push((
-                    "max_dpb_slots".to_string(),
-                    h264.max_dpb_slots.to_string(),
-                ));
+                caps.extra
+                    .push(("max_dpb_slots".to_string(), h264.max_dpb_slots.to_string()));
                 caps.extra.push((
                     "max_active_reference_pictures".to_string(),
                     h264.max_active_reference_pictures.to_string(),
@@ -270,12 +274,7 @@ fn device_type_label(t: PhysicalDeviceType) -> &'static str {
 /// Whether at least one `VK_KHR_video_*` extension is advertised by
 /// the device.
 fn any_video_extension(v: &VideoExtensionSupport) -> bool {
-    v.queue_khr
-        || v.decode_h264
-        || v.decode_h265
-        || v.decode_av1
-        || v.encode_h264
-        || v.encode_h265
+    v.queue_khr || v.decode_h264 || v.decode_h265 || v.decode_av1 || v.encode_h264 || v.encode_h265
 }
 
 /// Sum of every heap on the physical device whose `flags` field has

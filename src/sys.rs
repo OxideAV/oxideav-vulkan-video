@@ -302,7 +302,8 @@ pub const VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_EXTENSION_NAME: &str =
 
 /// `VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_SPEC_VERSION` packed —
 /// `VK_MAKE_VIDEO_STD_VERSION(1, 0, 0)` ≡ `(1 << 22) | (0 << 12) | 0`.
-pub const VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_SPEC_VERSION: u32 = (1u32 << 22) | (0u32 << 12);
+/// Minor/patch are zero so only the major-version field is non-zero.
+pub const VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_SPEC_VERSION: u32 = 1u32 << 22;
 
 // ─────────────────────────── Memory property bits ────────────────────────────
 
@@ -438,8 +439,10 @@ pub const VK_STRUCTURE_TYPE_VIDEO_END_CODING_INFO_KHR: VkStructureType = 1000023
 pub const VK_STRUCTURE_TYPE_VIDEO_CODING_CONTROL_INFO_KHR: VkStructureType = 1000023010;
 pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_INFO_KHR: VkStructureType = 1000024000;
 pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_PICTURE_INFO_KHR: VkStructureType = 1000040001;
-pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_SESSION_PARAMETERS_CREATE_INFO_KHR: VkStructureType = 1000040004;
-pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_SESSION_PARAMETERS_ADD_INFO_KHR: VkStructureType = 1000040005;
+pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_SESSION_PARAMETERS_CREATE_INFO_KHR: VkStructureType =
+    1000040004;
+pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_SESSION_PARAMETERS_ADD_INFO_KHR: VkStructureType =
+    1000040005;
 pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_DPB_SLOT_INFO_KHR: VkStructureType = 1000040006;
 
 // ─────────────────────────── Round 4 — image / buffer / pipeline constants ───
@@ -1602,8 +1605,7 @@ pub struct VkFenceCreateInfo {
 
 /// `vkDestroyInstance(instance, allocator)` — called from
 /// `Drop for Instance` to release the instance handle.
-pub type FnVkDestroyInstance =
-    unsafe extern "C" fn(instance: VkInstance, allocator: *const c_void);
+pub type FnVkDestroyInstance = unsafe extern "C" fn(instance: VkInstance, allocator: *const c_void);
 
 /// `vkEnumeratePhysicalDevices(instance, count, devices)` — populates
 /// the array of `VkPhysicalDevice` handles. Two-call pattern: pass
@@ -1797,11 +1799,8 @@ pub type FnVkCreateImageView = unsafe extern "C" fn(
     p_image_view: *mut VkImageView,
 ) -> VkResult;
 
-pub type FnVkDestroyImageView = unsafe extern "C" fn(
-    device: VkDevice,
-    image_view: VkImageView,
-    p_allocator: *const c_void,
-);
+pub type FnVkDestroyImageView =
+    unsafe extern "C" fn(device: VkDevice, image_view: VkImageView, p_allocator: *const c_void);
 
 pub type FnVkGetBufferMemoryRequirements = unsafe extern "C" fn(
     device: VkDevice,
@@ -1847,11 +1846,8 @@ pub type FnVkCreateCommandPool = unsafe extern "C" fn(
     p_command_pool: *mut VkCommandPool,
 ) -> VkResult;
 
-pub type FnVkDestroyCommandPool = unsafe extern "C" fn(
-    device: VkDevice,
-    command_pool: VkCommandPool,
-    p_allocator: *const c_void,
-);
+pub type FnVkDestroyCommandPool =
+    unsafe extern "C" fn(device: VkDevice, command_pool: VkCommandPool, p_allocator: *const c_void);
 
 pub type FnVkAllocateCommandBuffers = unsafe extern "C" fn(
     device: VkDevice,
@@ -1871,8 +1867,7 @@ pub type FnVkBeginCommandBuffer = unsafe extern "C" fn(
     p_begin_info: *const VkCommandBufferBeginInfo,
 ) -> VkResult;
 
-pub type FnVkEndCommandBuffer =
-    unsafe extern "C" fn(command_buffer: VkCommandBuffer) -> VkResult;
+pub type FnVkEndCommandBuffer = unsafe extern "C" fn(command_buffer: VkCommandBuffer) -> VkResult;
 
 pub type FnVkCmdPipelineBarrier = unsafe extern "C" fn(
     command_buffer: VkCommandBuffer,

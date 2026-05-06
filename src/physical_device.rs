@@ -80,7 +80,6 @@ impl From<VkPhysicalDeviceType> for PhysicalDeviceType {
     }
 }
 
-
 // ─────────────────────────── VideoExtensionSupport summary ───────────────────
 
 /// Per-codec support summary derived from the device's extension

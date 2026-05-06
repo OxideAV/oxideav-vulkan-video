@@ -198,7 +198,10 @@ fn h264_decoder_attempts_decode() {
         .env_remove("OXIDEAV_VK_SKIP_SUBMIT")
         .env_remove("OXIDEAV_VK_SKIP_DECODE")
         .env("OXIDEAV_VK_DECODE_OUTPUT", &output_path)
-        .env("OXIDEAV_VK_FIXTURE", fixtures_dir().join("h264_high_320x240_1frame.h264"))
+        .env(
+            "OXIDEAV_VK_FIXTURE",
+            fixtures_dir().join("h264_high_320x240_1frame.h264"),
+        )
         .status();
 
     let status = match status {
@@ -231,7 +234,10 @@ fn h264_decoder_attempts_decode() {
         eprintln!("vulkan-video round4: helper succeeded but produced no output file");
         return;
     };
-    eprintln!("vulkan-video round4: helper produced {} bytes", decoded.len());
+    eprintln!(
+        "vulkan-video round4: helper produced {} bytes",
+        decoded.len()
+    );
 
     assert_eq!(decoded.len(), 115200, "expected 320x240 I420");
 

@@ -36,11 +36,11 @@
 //!    b. Begins coding scope.
 //!    c. Issues the spec-mandated `RESET` control on first submission.
 //!    d. Issues `vkCmdDecodeVideoKHR` against the SPS/PPS-bound
-//!       `VkVideoSessionParametersKHR`, with a setup reference slot
-//!       identifying DPB slot 0 (the IDR's reconstruction).
+//!    `VkVideoSessionParametersKHR`, with a setup reference slot
+//!    identifying DPB slot 0 (the IDR's reconstruction).
 //!    e. Ends coding scope.
 //!    f. Transitions the output image to `TRANSFER_SRC_OPTIMAL` and
-//!       `vkCmdCopyImageToBuffer` it to staging.
+//!    `vkCmdCopyImageToBuffer` it to staging.
 //! 10. Submit, wait via `vkQueueWaitIdle`, then memcpy from the
 //!     mapped staging buffer into a planar `VideoFrame`.
 //!
@@ -60,7 +60,9 @@ use std::collections::VecDeque;
 use std::ffi::c_void;
 use std::ptr;
 
-use oxideav_core::{CodecId, CodecParameters, Error, Frame, Packet, Result, VideoFrame, VideoPlane};
+use oxideav_core::{
+    CodecId, CodecParameters, Error, Frame, Packet, Result, VideoFrame, VideoPlane,
+};
 
 use oxideav_bitstream::h264::{
     self as bs_h264, H264Pps, H264Sps, NAL_TYPE_IDR, NAL_TYPE_NON_IDR_SLICE, NAL_TYPE_PPS,
@@ -84,26 +86,23 @@ use crate::sys::{
     VkMemoryRequirements, VkOffset2D, VkOffset3D, VkPhysicalDeviceMemoryProperties, VkSubmitInfo,
     VkVideoBeginCodingInfoKHR, VkVideoCodingControlInfoKHR, VkVideoDecodeH264DpbSlotInfoKHR,
     VkVideoDecodeH264PictureInfoKHR, VkVideoDecodeH264ProfileInfoKHR,
-    VkVideoDecodeH264SessionParametersAddInfoKHR,
-    VkVideoDecodeH264SessionParametersCreateInfoKHR, VkVideoDecodeInfoKHR,
-    VkVideoEndCodingInfoKHR, VkVideoPictureResourceInfoKHR, VkVideoProfileInfoKHR,
-    VkVideoProfileListInfoKHR, VkVideoReferenceSlotInfoKHR,
+    VkVideoDecodeH264SessionParametersAddInfoKHR, VkVideoDecodeH264SessionParametersCreateInfoKHR,
+    VkVideoDecodeInfoKHR, VkVideoEndCodingInfoKHR, VkVideoPictureResourceInfoKHR,
+    VkVideoProfileInfoKHR, VkVideoProfileListInfoKHR, VkVideoReferenceSlotInfoKHR,
     VkVideoSessionParametersCreateInfoKHR, VkVideoSessionParametersKHR,
     STD_VIDEO_H264_CHROMA_FORMAT_IDC_420, STD_VIDEO_H264_PROFILE_IDC_HIGH,
     VK_ACCESS_MEMORY_READ_BIT, VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
-    VK_API_VERSION_1_2, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-    VK_BUFFER_USAGE_VIDEO_DECODE_SRC_BIT_KHR, VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-    VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    VK_API_VERSION_1_2, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_BUFFER_USAGE_VIDEO_DECODE_SRC_BIT_KHR,
+    VK_COMMAND_BUFFER_LEVEL_PRIMARY, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
-    VK_IMAGE_ASPECT_PLANE_0_BIT, VK_IMAGE_ASPECT_PLANE_1_BIT,
-    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_UNDEFINED,
-    VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR, VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR,
-    VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_TYPE_2D, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-    VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR, VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR,
-    VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_HOST_BIT,
-    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+    VK_IMAGE_ASPECT_PLANE_0_BIT, VK_IMAGE_ASPECT_PLANE_1_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR,
+    VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_TYPE_2D,
+    VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR,
+    VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+    VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
     VK_QUEUE_FAMILY_IGNORED, VK_SAMPLE_COUNT_1_BIT, VK_SHARING_MODE_EXCLUSIVE,
     VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
     VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -117,9 +116,8 @@ use crate::sys::{
     VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_SESSION_PARAMETERS_ADD_INFO_KHR,
     VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_SESSION_PARAMETERS_CREATE_INFO_KHR,
     VK_STRUCTURE_TYPE_VIDEO_DECODE_INFO_KHR, VK_STRUCTURE_TYPE_VIDEO_END_CODING_INFO_KHR,
-    VK_STRUCTURE_TYPE_VIDEO_PICTURE_RESOURCE_INFO_KHR,
-    VK_STRUCTURE_TYPE_VIDEO_PROFILE_INFO_KHR, VK_STRUCTURE_TYPE_VIDEO_PROFILE_LIST_INFO_KHR,
-    VK_STRUCTURE_TYPE_VIDEO_REFERENCE_SLOT_INFO_KHR,
+    VK_STRUCTURE_TYPE_VIDEO_PICTURE_RESOURCE_INFO_KHR, VK_STRUCTURE_TYPE_VIDEO_PROFILE_INFO_KHR,
+    VK_STRUCTURE_TYPE_VIDEO_PROFILE_LIST_INFO_KHR, VK_STRUCTURE_TYPE_VIDEO_REFERENCE_SLOT_INFO_KHR,
     VK_STRUCTURE_TYPE_VIDEO_SESSION_PARAMETERS_CREATE_INFO_KHR, VK_SUCCESS,
     VK_VIDEO_CHROMA_SUBSAMPLING_420_BIT_KHR, VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR,
     VK_VIDEO_CODING_CONTROL_RESET_BIT_KHR, VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR,
@@ -157,7 +155,11 @@ fn compute_slice_offsets(bitstream: &[u8]) -> Vec<u32> {
     while pos + 4 <= len {
         let sc_pos;
         let sc_len;
-        if bitstream[pos] == 0 && bitstream[pos + 1] == 0 && bitstream[pos + 2] == 0 && bitstream[pos + 3] == 1 {
+        if bitstream[pos] == 0
+            && bitstream[pos + 1] == 0
+            && bitstream[pos + 2] == 0
+            && bitstream[pos + 3] == 1
+        {
             sc_pos = pos;
             sc_len = 4;
         } else if bitstream[pos] == 0 && bitstream[pos + 1] == 0 && bitstream[pos + 2] == 1 {
@@ -200,12 +202,7 @@ fn engine_info_filter_admits(pd: &PhysicalDevice<'_>) -> bool {
         return true;
     }
     let v = pd.supports_video_extensions();
-    v.queue_khr
-        || v.decode_h264
-        || v.decode_h265
-        || v.decode_av1
-        || v.encode_h264
-        || v.encode_h265
+    v.queue_khr || v.decode_h264 || v.decode_h265 || v.decode_av1 || v.encode_h264 || v.encode_h265
 }
 
 /// Pick the first memory type whose bit is set in `type_bits` AND
@@ -249,7 +246,6 @@ struct DecoderState {
     // We do explicit destruction in `Drop` (because most of the
     // Vulkan handles are non-RAII raw types) but we still rely on
     // `device` and `instance` being kept alive until the very end.
-
     /// Pre-recorded command buffer for one decode dispatch. Freed
     /// before `command_pool` in Drop.
     command_buffer: VkCommandBuffer,
@@ -339,11 +335,7 @@ impl Drop for DecoderState {
                 );
             }
             if !self.command_pool.is_null() {
-                (dfns.destroy_command_pool)(
-                    self.device.handle(),
-                    self.command_pool,
-                    ptr::null(),
-                );
+                (dfns.destroy_command_pool)(self.device.handle(), self.command_pool, ptr::null());
             }
             if !self.bitstream_buffer.is_null() {
                 (dfns.destroy_buffer)(self.device.handle(), self.bitstream_buffer, ptr::null());
@@ -529,9 +521,11 @@ impl oxideav_core::Decoder for H264VkDecoder {
             return Ok(());
         }
 
-        let parsed_sps = bs_h264::parse_sps_nal(self.sps_nals.first().ok_or_else(|| {
-            Error::other("vulkan-video: VCL slice arrived before SPS")
-        })?)
+        let parsed_sps = bs_h264::parse_sps_nal(
+            self.sps_nals
+                .first()
+                .ok_or_else(|| Error::other("vulkan-video: VCL slice arrived before SPS"))?,
+        )
         .map_err(|e| Error::other(format!("vulkan-video: SPS parse failed: {e}")))?;
 
         // The "picture bytes" we send to the GPU are the full packet's
@@ -546,7 +540,11 @@ impl oxideav_core::Decoder for H264VkDecoder {
         if let Some(f) = self.output_queue.pop_front() {
             return Ok(Frame::Video(f));
         }
-        Err(if self.flushed { Error::Eof } else { Error::NeedMore })
+        Err(if self.flushed {
+            Error::Eof
+        } else {
+            Error::NeedMore
+        })
     }
 
     fn flush(&mut self) -> Result<()> {
@@ -574,11 +572,15 @@ impl DecoderState {
         // `engine_info()` consumer that prints "device 1" and then
         // passes `with_device_index(1)` expects the decoder to bind
         // to that exact same physical device.
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: enumerating physical devices");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: enumerating physical devices");
+        }
         let devices = instance
             .physical_devices()
             .map_err(|e| Error::unsupported(format!("vulkan-video: {e}")))?;
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: {} physical devices found", devices.len());}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: {} physical devices found", devices.len());
+        }
 
         // Filter to the same set engine_info() exposes.
         let filtered_indices: Vec<usize> = devices
@@ -631,10 +633,12 @@ impl DecoderState {
         drop(devices);
 
         // ── Capabilities ────────────────────────────────────────
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: querying caps");}
-        let pds = instance.physical_devices().map_err(|e| {
-            Error::unsupported(format!("vulkan-video: physical_devices: {e}"))
-        })?;
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: querying caps");
+        }
+        let pds = instance
+            .physical_devices()
+            .map_err(|e| Error::unsupported(format!("vulkan-video: physical_devices: {e}")))?;
         let pd = pds
             .iter()
             .find(|p| p.handle() == pd_handle)
@@ -642,9 +646,13 @@ impl DecoderState {
         let caps = query_video_decode_h264_capabilities(pd, STD_VIDEO_H264_PROFILE_IDC_HIGH)
             .map_err(|e| Error::unsupported(format!("vulkan-video: caps: {e}")))?;
         if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
-            eprintln!("vulkan-video: caps OK ({}x{} dpb={} bsalign={})",
-                caps.max_coded_extent.0, caps.max_coded_extent.1,
-                caps.max_dpb_slots, caps.min_bitstream_buffer_offset_alignment);
+            eprintln!(
+                "vulkan-video: caps OK ({}x{} dpb={} bsalign={})",
+                caps.max_coded_extent.0,
+                caps.max_coded_extent.1,
+                caps.max_dpb_slots,
+                caps.min_bitstream_buffer_offset_alignment
+            );
         }
 
         // Driver capability flag: DPB & output coincide?
@@ -664,14 +672,16 @@ impl DecoderState {
 
         // ── Device ──────────────────────────────────────────────
         // We re-enumerate one more time and create the Device.
-        let pds = instance.physical_devices().map_err(|e| {
-            Error::unsupported(format!("vulkan-video: physical_devices2: {e}"))
-        })?;
+        let pds = instance
+            .physical_devices()
+            .map_err(|e| Error::unsupported(format!("vulkan-video: physical_devices2: {e}")))?;
         let pd = pds
             .iter()
             .find(|p| p.handle() == pd_handle)
             .ok_or_else(|| Error::other("vulkan-video: pd lookup2 failed"))?;
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: creating device");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: creating device");
+        }
         let device = Device::new(
             pd,
             qfi,
@@ -682,7 +692,9 @@ impl DecoderState {
             ],
         )
         .map_err(|e| Error::unsupported(format!("vulkan-video: vkCreateDevice: {e}")))?;
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: device OK");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: device OK");
+        }
         drop(pds);
 
         // ── Video session ───────────────────────────────────────
@@ -690,9 +702,9 @@ impl DecoderState {
         // to align; we hide this with `transmute` below into an owned
         // `VideoSession<'static>` whose Drop runs before the Device's
         // Drop because of struct field ordering.
-        let pds = instance.physical_devices().map_err(|e| {
-            Error::unsupported(format!("vulkan-video: physical_devices3: {e}"))
-        })?;
+        let pds = instance
+            .physical_devices()
+            .map_err(|e| Error::unsupported(format!("vulkan-video: physical_devices3: {e}")))?;
         let pd = pds
             .iter()
             .find(|p| p.handle() == pd_handle)
@@ -704,10 +716,12 @@ impl DecoderState {
         let max_w = max_w.min(caps.max_coded_extent.0).max(16);
         let max_h = max_h.min(caps.max_coded_extent.1).max(16);
 
-        let dpb_slots = caps.max_dpb_slots.min(17).max(1);
+        let dpb_slots = caps.max_dpb_slots.clamp(1, 17);
         let active_refs = caps.max_active_reference_pictures.min(16);
 
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: creating session ({}x{})", max_w, max_h);}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: creating session ({}x{})", max_w, max_h);
+        }
         let mut video_session = VideoSession::new_h264_decode(
             // SAFETY: extending `&device` lifetime to 'static. The
             // `Device` is owned by `Self` and freed only after the
@@ -722,11 +736,15 @@ impl DecoderState {
             active_refs,
         )
         .map_err(|e| Error::unsupported(format!("vulkan-video: vkCreateVideoSessionKHR: {e}")))?;
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: session created, binding memory");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: session created, binding memory");
+        }
         video_session
             .allocate_and_bind_memory(pd)
             .map_err(|e| Error::other(format!("vulkan-video: bind session memory: {e}")))?;
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: session memory bound");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: session memory bound");
+        }
 
         drop(pds);
 
@@ -756,7 +774,9 @@ impl DecoderState {
             video_session_parameters_template: ptr::null_mut(),
             video_session: video_session.handle(),
         };
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: creating session parameters");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: creating session parameters");
+        }
         let mut session_params: VkVideoSessionParametersKHR = ptr::null_mut();
         let r = unsafe {
             (device.fns().create_video_session_parameters_khr)(
@@ -769,7 +789,9 @@ impl DecoderState {
         if r != VK_SUCCESS {
             return Err(vk_err("vkCreateVideoSessionParametersKHR", r));
         }
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: session parameters OK");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: session parameters OK");
+        }
 
         // ── Profile struct kept for image creation pNext chain ──
         let h264_profile = VkVideoDecodeH264ProfileInfoKHR {
@@ -821,36 +843,35 @@ impl DecoderState {
             p_queue_family_indices: ptr::null(),
             initial_layout: VK_IMAGE_LAYOUT_UNDEFINED,
         };
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: creating DPB image");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: creating DPB image");
+        }
         let mut dpb_image: VkImage = ptr::null_mut();
         let r = unsafe {
-            (device.fns().create_image)(
-                device.handle(),
-                &dpb_image_ci,
-                ptr::null(),
-                &mut dpb_image,
-            )
+            (device.fns().create_image)(device.handle(), &dpb_image_ci, ptr::null(), &mut dpb_image)
         };
         if r != VK_SUCCESS {
             return Err(vk_err("vkCreateImage(DPB)", r));
         }
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: DPB image OK");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: DPB image OK");
+        }
 
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: DPB image mem requirements");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: DPB image mem requirements");
+        }
         let dpb_mem_reqs = {
             let mut req = VkMemoryRequirements::default();
             unsafe {
-                (device.fns().get_image_memory_requirements)(
-                    device.handle(),
-                    dpb_image,
-                    &mut req,
-                )
+                (device.fns().get_image_memory_requirements)(device.handle(), dpb_image, &mut req)
             };
             req
         };
         if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
-            eprintln!("vulkan-video: DPB mem reqs size={} type_bits=0x{:x}",
-                dpb_mem_reqs.size, dpb_mem_reqs.memory_type_bits);
+            eprintln!(
+                "vulkan-video: DPB mem reqs size={} type_bits=0x{:x}",
+                dpb_mem_reqs.size, dpb_mem_reqs.memory_type_bits
+            );
         }
         let dpb_type = pick_memory_type(
             &mem_props,
@@ -876,13 +897,14 @@ impl DecoderState {
         if r != VK_SUCCESS {
             return Err(vk_err("vkAllocateMemory(DPB)", r));
         }
-        let r = unsafe {
-            (device.fns().bind_image_memory)(device.handle(), dpb_image, dpb_memory, 0)
-        };
+        let r =
+            unsafe { (device.fns().bind_image_memory)(device.handle(), dpb_image, dpb_memory, 0) };
         if r != VK_SUCCESS {
             return Err(vk_err("vkBindImageMemory(DPB)", r));
         }
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: DPB image+memory bound");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: DPB image+memory bound");
+        }
 
         // DPB image view — base layer 0 (our setup slot is always 0).
         let dpb_view_ci = VkImageViewCreateInfo {
@@ -913,7 +935,9 @@ impl DecoderState {
         if r != VK_SUCCESS {
             return Err(vk_err("vkCreateImageView(DPB)", r));
         }
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: DPB image view OK");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: DPB image view OK");
+        }
 
         // ── Output image: same as DPB on coincide drivers ───────
         let (output_image, output_memory, output_image_view) = if coincide {
@@ -972,12 +996,7 @@ impl DecoderState {
             };
             let mut img: VkImage = ptr::null_mut();
             let r = unsafe {
-                (device.fns().create_image)(
-                    device.handle(),
-                    &out_image_ci,
-                    ptr::null(),
-                    &mut img,
-                )
+                (device.fns().create_image)(device.handle(), &out_image_ci, ptr::null(), &mut img)
             };
             if r != VK_SUCCESS {
                 return Err(vk_err("vkCreateImage(output)", r));
@@ -1000,19 +1019,12 @@ impl DecoderState {
             };
             let mut m: VkDeviceMemory = ptr::null_mut();
             let r = unsafe {
-                (device.fns().allocate_memory)(
-                    device.handle(),
-                    &alloc,
-                    ptr::null(),
-                    &mut m,
-                )
+                (device.fns().allocate_memory)(device.handle(), &alloc, ptr::null(), &mut m)
             };
             if r != VK_SUCCESS {
                 return Err(vk_err("vkAllocateMemory(output)", r));
             }
-            let r = unsafe {
-                (device.fns().bind_image_memory)(device.handle(), img, m, 0)
-            };
+            let r = unsafe { (device.fns().bind_image_memory)(device.handle(), img, m, 0) };
             if r != VK_SUCCESS {
                 return Err(vk_err("vkBindImageMemory(output)", r));
             }
@@ -1034,12 +1046,7 @@ impl DecoderState {
             };
             let mut v: VkImageView = ptr::null_mut();
             let r = unsafe {
-                (device.fns().create_image_view)(
-                    device.handle(),
-                    &view_ci,
-                    ptr::null(),
-                    &mut v,
-                )
+                (device.fns().create_image_view)(device.handle(), &view_ci, ptr::null(), &mut v)
             };
             if r != VK_SUCCESS {
                 return Err(vk_err("vkCreateImageView(output)", r));
@@ -1051,11 +1058,13 @@ impl DecoderState {
         // Generous size — the full Annex-B picture for a small fixture
         // is well under 64 KiB. Caller can re-create on resize, this is
         // a Round-4 simplification.
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: creating bitstream buffer (coincide={})", coincide);}
-        let bitstream_size = align_up(
-            65536,
-            caps.min_bitstream_buffer_offset_alignment.max(1),
-        );
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!(
+                "vulkan-video: creating bitstream buffer (coincide={})",
+                coincide
+            );
+        }
+        let bitstream_size = align_up(65536, caps.min_bitstream_buffer_offset_alignment.max(1));
         let buffer_ci = VkBufferCreateInfo {
             s_type: VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             p_next: &profile_list as *const _ as *const c_void,
@@ -1078,7 +1087,9 @@ impl DecoderState {
         if r != VK_SUCCESS {
             return Err(vk_err("vkCreateBuffer(bitstream)", r));
         }
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: bitstream buffer OK");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: bitstream buffer OK");
+        }
         let mut bitstream_req = VkMemoryRequirements::default();
         unsafe {
             (device.fns().get_buffer_memory_requirements)(
@@ -1111,7 +1122,9 @@ impl DecoderState {
         if r != VK_SUCCESS {
             return Err(vk_err("vkAllocateMemory(bitstream)", r));
         }
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: bitstream memory allocated");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: bitstream memory allocated");
+        }
         let r = unsafe {
             (device.fns().bind_buffer_memory)(
                 device.handle(),
@@ -1123,7 +1136,9 @@ impl DecoderState {
         if r != VK_SUCCESS {
             return Err(vk_err("vkBindBufferMemory(bitstream)", r));
         }
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: bitstream memory bound");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: bitstream memory bound");
+        }
 
         // ── Staging buffer (host-visible, big enough for NV12) ──
         let luma_stride = max_w;
@@ -1142,7 +1157,12 @@ impl DecoderState {
             queue_family_index_count: 0,
             p_queue_family_indices: ptr::null(),
         };
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: creating staging buffer (size={})", staging_size);}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!(
+                "vulkan-video: creating staging buffer (size={})",
+                staging_size
+            );
+        }
         let mut staging_buffer: VkBuffer = ptr::null_mut();
         let r = unsafe {
             (device.fns().create_buffer)(
@@ -1155,7 +1175,9 @@ impl DecoderState {
         if r != VK_SUCCESS {
             return Err(vk_err("vkCreateBuffer(staging)", r));
         }
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: staging buffer OK");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: staging buffer OK");
+        }
         let mut staging_req = VkMemoryRequirements::default();
         unsafe {
             (device.fns().get_buffer_memory_requirements)(
@@ -1189,17 +1211,14 @@ impl DecoderState {
             return Err(vk_err("vkAllocateMemory(staging)", r));
         }
         let r = unsafe {
-            (device.fns().bind_buffer_memory)(
-                device.handle(),
-                staging_buffer,
-                staging_memory,
-                0,
-            )
+            (device.fns().bind_buffer_memory)(device.handle(), staging_buffer, staging_memory, 0)
         };
         if r != VK_SUCCESS {
             return Err(vk_err("vkBindBufferMemory(staging)", r));
         }
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: staging buffer bound");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: staging buffer bound");
+        }
 
         // ── Command pool + command buffer ──────────────────────
         let cp_ci = VkCommandPoolCreateInfo {
@@ -1229,16 +1248,14 @@ impl DecoderState {
         };
         let mut command_buffer: VkCommandBuffer = ptr::null_mut();
         let r = unsafe {
-            (device.fns().allocate_command_buffers)(
-                device.handle(),
-                &cb_ai,
-                &mut command_buffer,
-            )
+            (device.fns().allocate_command_buffers)(device.handle(), &cb_ai, &mut command_buffer)
         };
         if r != VK_SUCCESS {
             return Err(vk_err("vkAllocateCommandBuffers", r));
         }
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: command pool + buffer OK");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: command pool + buffer OK");
+        }
 
         Ok(Self {
             command_buffer,
@@ -1256,7 +1273,12 @@ impl DecoderState {
             dpb_image,
             dpb_memory,
             session_params,
-            session: Some(unsafe { std::mem::transmute(video_session) }),
+            // SAFETY: extends the `'device` borrow on `video_session` to
+            // `'static`; the session is owned by `Self` and dropped before
+            // the `Device` it borrows, so the apparent lifetime is sound.
+            session: Some(unsafe {
+                std::mem::transmute::<VideoSession<'_>, VideoSession<'static>>(video_session)
+            }),
             queue_family_index: qfi,
             physical_device_handle: pd_handle,
             device,
@@ -1278,7 +1300,12 @@ impl DecoderState {
         sps: &H264Sps,
         out_queue: &mut VecDeque<VideoFrame>,
     ) -> Result<()> {
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: decode_picture (bitstream={})", bitstream.len());}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!(
+                "vulkan-video: decode_picture (bitstream={})",
+                bitstream.len()
+            );
+        }
         // ── Upload bitstream to host-visible buffer ────────────
         if (bitstream.len() as u64) > self.bitstream_size {
             return Err(Error::other(format!(
@@ -1300,12 +1327,16 @@ impl DecoderState {
             if r != VK_SUCCESS {
                 return Err(vk_err("vkMapMemory(bitstream)", r));
             }
-            if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: bitstream mapped at {:p}", p);}
+            if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+                eprintln!("vulkan-video: bitstream mapped at {:p}", p);
+            }
             // Zero-fill remainder, then copy.
             std::ptr::write_bytes(p as *mut u8, 0, self.bitstream_size as usize);
             std::ptr::copy_nonoverlapping(bitstream.as_ptr(), p as *mut u8, bitstream.len());
             (self.device.fns().unmap_memory)(self.device.handle(), self.bitstream_memory);
-            if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: bitstream uploaded");}
+            if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+                eprintln!("vulkan-video: bitstream uploaded");
+            }
         }
 
         // ── Build the various structs for the command buffer ───
@@ -1328,7 +1359,13 @@ impl DecoderState {
         // points to the start code prefix of that NAL, relative to
         // srcBufferOffset (= 0 in our case).
         let slice_offsets = compute_slice_offsets(bitstream);
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: {} VCL slices at offsets {:?}", slice_offsets.len(), slice_offsets);}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!(
+                "vulkan-video: {} VCL slices at offsets {:?}",
+                slice_offsets.len(),
+                slice_offsets
+            );
+        }
         let slice_count = slice_offsets.len() as u32;
         let h264_pic_info = VkVideoDecodeH264PictureInfoKHR {
             s_type: VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_PICTURE_INFO_KHR,
@@ -1384,32 +1421,20 @@ impl DecoderState {
 
         // dst_picture_resource — where the GPU writes the decoded
         // output. On coincide drivers this is the same view+layer as
-        // the setup reference; on distinct, it's the separate output
-        // image (which has only one layer).
-        let dst_picture_resource = if self.coincide {
-            VkVideoPictureResourceInfoKHR {
-                s_type: VK_STRUCTURE_TYPE_VIDEO_PICTURE_RESOURCE_INFO_KHR,
-                p_next: ptr::null(),
-                coded_offset: VkOffset2D { x: 0, y: 0 },
-                coded_extent: VkExtent2D {
-                    width: sps.coded_width().max(self.width),
-                    height: sps.coded_height().max(self.height),
-                },
-                base_array_layer: 0,
-                image_view_binding: self.output_image_view,
-            }
-        } else {
-            VkVideoPictureResourceInfoKHR {
-                s_type: VK_STRUCTURE_TYPE_VIDEO_PICTURE_RESOURCE_INFO_KHR,
-                p_next: ptr::null(),
-                coded_offset: VkOffset2D { x: 0, y: 0 },
-                coded_extent: VkExtent2D {
-                    width: sps.coded_width().max(self.width),
-                    height: sps.coded_height().max(self.height),
-                },
-                base_array_layer: 0,
-                image_view_binding: self.output_image_view,
-            }
+        // the setup reference (`output_image_view` aliases the DPB
+        // image); on distinct, it's the separate output image. Either
+        // way `output_image_view` was constructed to point at the
+        // correct backing image, so the descriptor is identical.
+        let dst_picture_resource = VkVideoPictureResourceInfoKHR {
+            s_type: VK_STRUCTURE_TYPE_VIDEO_PICTURE_RESOURCE_INFO_KHR,
+            p_next: ptr::null(),
+            coded_offset: VkOffset2D { x: 0, y: 0 },
+            coded_extent: VkExtent2D {
+                width: sps.coded_width().max(self.width),
+                height: sps.coded_height().max(self.height),
+            },
+            base_array_layer: 0,
+            image_view_binding: self.output_image_view,
         };
 
         let session_handle = self
@@ -1460,13 +1485,13 @@ impl DecoderState {
             flags: VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
             p_inheritance_info: ptr::null(),
         };
-        let r = unsafe {
-            (self.device.fns().begin_command_buffer)(self.command_buffer, &cb_begin)
-        };
+        let r = unsafe { (self.device.fns().begin_command_buffer)(self.command_buffer, &cb_begin) };
         if r != VK_SUCCESS {
             return Err(vk_err("vkBeginCommandBuffer", r));
         }
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: command buffer recording started");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: command buffer recording started");
+        }
 
         // Transition DPB image (and output image, if distinct) from
         // UNDEFINED to VIDEO_DECODE_DPB_KHR / DECODE_DST_KHR.
@@ -1530,29 +1555,38 @@ impl DecoderState {
 
         // Begin video coding scope.
         if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
-            eprintln!("vulkan-video: recording video coding commands (skip_decode={})",
-                std::env::var("OXIDEAV_VK_SKIP_DECODE").is_ok());
+            eprintln!(
+                "vulkan-video: recording video coding commands (skip_decode={})",
+                std::env::var("OXIDEAV_VK_SKIP_DECODE").is_ok()
+            );
         }
         let skip_decode = std::env::var("OXIDEAV_VK_SKIP_DECODE").is_ok();
         unsafe {
             (self.device.fns().cmd_begin_video_coding_khr)(self.command_buffer, &begin_info);
-            if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: cmd_begin_video_coding done");}
+            if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+                eprintln!("vulkan-video: cmd_begin_video_coding done");
+            }
             (self.device.fns().cmd_control_video_coding_khr)(self.command_buffer, &control_info);
-            if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: cmd_control done");}
+            if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+                eprintln!("vulkan-video: cmd_control done");
+            }
             if !skip_decode {
                 (self.device.fns().cmd_decode_video_khr)(self.command_buffer, &decode_info);
-                if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: cmd_decode done");}
+                if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+                    eprintln!("vulkan-video: cmd_decode done");
+                }
             }
             (self.device.fns().cmd_end_video_coding_khr)(self.command_buffer, &end_info);
-            if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: cmd_end done");}
+            if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+                eprintln!("vulkan-video: cmd_end done");
+            }
         }
 
-        // Transition output image to TRANSFER_SRC_OPTIMAL.
-        let src_layout = if self.coincide {
-            VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR
-        } else {
-            VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR
-        };
+        // Transition output image to TRANSFER_SRC_OPTIMAL. After the
+        // decode submission the output image (whether aliased onto the
+        // DPB on coincide drivers or a distinct image otherwise) is in
+        // VIDEO_DECODE_DST_KHR — see the pre-decode barrier above.
+        let src_layout = VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR;
         let to_xfer = VkImageMemoryBarrier {
             s_type: VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
             p_next: ptr::null(),
@@ -1674,7 +1708,9 @@ impl DecoderState {
         if r != VK_SUCCESS {
             return Err(vk_err("vkEndCommandBuffer", r));
         }
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: end_command_buffer OK, submitting");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: end_command_buffer OK, submitting");
+        }
 
         if std::env::var("OXIDEAV_VK_SKIP_SUBMIT").is_ok() {
             return Err(Error::other("OXIDEAV_VK_SKIP_SUBMIT set; skipping submit"));
@@ -1703,7 +1739,9 @@ impl DecoderState {
         if r != VK_SUCCESS {
             return Err(vk_err("vkQueueWaitIdle", r));
         }
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: GPU done, reading staging");}
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!("vulkan-video: GPU done, reading staging");
+        }
 
         // ── Read pixels back from staging ───────────────────────
         let mut frame_y = vec![0u8; (self.width as usize) * (self.height as usize)];
