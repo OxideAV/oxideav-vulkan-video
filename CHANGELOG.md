@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — Round 7
+
+- `H264VkDecoder::make` honours `CodecParameters::device_index`.
+  Indexing matches `engine_info()`'s `VkPhysicalDevice` filtering
+  order — every physical device whose type is
+  Discrete/Integrated/Virtual GPU OR that advertises any
+  `VK_KHR_video_*` extension, in `Instance::physical_devices()`
+  enumeration order. The two MUST stay in sync: a CLI consumer that
+  prints "device 1" via `engine_info()` and then passes
+  `with_device_index(1)` to `CodecParameters::video(...)` gets the
+  decoder bound to that exact same `VkPhysicalDevice`.
+- `device_index = None` (the default) resolves to device 0 via
+  `unwrap_or(0)`, preserving prior behaviour bit-for-bit on every
+  single-GPU host.
+- An out-of-range `device_index` surfaces as `Error::Unsupported(
+  "vulkan-video: device_index N out of range (0..M)")` so the codec
+  registry can fall back to a software path; a chosen device that
+  doesn't actually advertise H.264 decode (`queue_khr` /
+  `decode_h264`) likewise returns `Error::Unsupported` with a
+  descriptive message rather than silently picking a different
+  device.
+- New integration test `tests/round7_device_index.rs` —
+  `device_index_none_uses_first_video_device`,
+  `device_index_zero_explicit_works`,
+  `device_index_out_of_range_errors`,
+  `device_index_default_is_none_in_codec_parameters`.
+  Skip-friendly when no Vulkan ICD is installed; uses the same
+  `OXIDEAV_VK_SKIP_SUBMIT` hook the round 4 tests use to stop short
+  of the NVIDIA-driver `vkQueueSubmit` SIGSEGV.
+
 ### Added — Round 6
 
 - New module `engine` exposing

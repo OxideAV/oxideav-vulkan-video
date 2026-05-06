@@ -70,7 +70,8 @@ use oxideav_bitstream::h264::{
 use crate::device::Device;
 use crate::instance::Instance;
 use crate::physical_device::{
-    VK_KHR_VIDEO_DECODE_H264_NAME, VK_KHR_VIDEO_DECODE_QUEUE_NAME, VK_KHR_VIDEO_QUEUE_NAME,
+    PhysicalDevice, PhysicalDeviceType, VK_KHR_VIDEO_DECODE_H264_NAME,
+    VK_KHR_VIDEO_DECODE_QUEUE_NAME, VK_KHR_VIDEO_QUEUE_NAME,
 };
 use crate::sys::{
     self, StdVideoDecodeH264PictureInfo, StdVideoDecodeH264PictureInfoFlags,
@@ -176,6 +177,35 @@ fn compute_slice_offsets(bitstream: &[u8]) -> Vec<u32> {
         pos = sc_pos + sc_len;
     }
     offsets
+}
+
+/// Whether `pd` would be surfaced by [`crate::engine_info`]. The
+/// decoder uses the same predicate so `device_index` indexes into the
+/// same filtered list a CLI consumer of `engine_info()` sees.
+///
+/// Mirrors `crate::engine::build_device_info`'s admit rule:
+/// `device_type ∈ {Discrete, Integrated, Virtual} GPU OR any
+/// VK_KHR_video_* extension advertised`. CPU / Other ICDs without
+/// any video extension are skipped — the same set engine_info()
+/// would have skipped.
+fn engine_info_filter_admits(pd: &PhysicalDevice<'_>) -> bool {
+    let props = pd.properties();
+    let useful_type = matches!(
+        props.device_type,
+        PhysicalDeviceType::DiscreteGpu
+            | PhysicalDeviceType::IntegratedGpu
+            | PhysicalDeviceType::VirtualGpu
+    );
+    if useful_type {
+        return true;
+    }
+    let v = pd.supports_video_extensions();
+    v.queue_khr
+        || v.decode_h264
+        || v.decode_h265
+        || v.decode_av1
+        || v.encode_h264
+        || v.encode_h265
 }
 
 /// Pick the first memory type whose bit is set in `type_bits` AND
@@ -379,15 +409,31 @@ pub struct H264VkDecoder {
     pps_nals: Vec<Vec<u8>>,
     output_queue: VecDeque<VideoFrame>,
     flushed: bool,
+    /// Captured at construction from
+    /// [`CodecParameters::device_index`] (`unwrap_or(0)`). Indexes
+    /// into the same filtered physical-device list that
+    /// [`crate::engine_info`] reports.
+    device_index: u32,
 }
 
 impl H264VkDecoder {
     /// Factory used by `register()`.
-    pub fn make(_params: &CodecParameters) -> Result<Box<dyn oxideav_core::Decoder>> {
+    ///
+    /// Honours [`CodecParameters::device_index`] (`unwrap_or(0)`) by
+    /// capturing the requested index here; the index is consumed when
+    /// the heavy [`DecoderState`] is lazily constructed on the first
+    /// SPS+PPS NAL pair. `device_index` is interpreted against the
+    /// **same filter** [`crate::engine_info`] applies — every physical
+    /// device whose type is `Discrete` / `Integrated` / `Virtual` GPU
+    /// or that advertises any `VK_KHR_video_*` extension. An out-of-
+    /// range index is reported via [`Error::Unsupported`] so the codec
+    /// registry can fall back to a software path.
+    pub fn make(params: &CodecParameters) -> Result<Box<dyn oxideav_core::Decoder>> {
         // Probe the loader so we fail fast on hosts without Vulkan
         // (the framework registry will fall back to the pure-Rust
         // path).
         sys::vtable().map_err(|e| Error::unsupported(format!("vulkan-video: {e}")))?;
+        let device_index = params.device_index.unwrap_or(0);
         Ok(Box::new(H264VkDecoder {
             codec_id: CodecId::new("h264"),
             state: None,
@@ -395,6 +441,7 @@ impl H264VkDecoder {
             pps_nals: Vec::new(),
             output_queue: VecDeque::new(),
             flushed: false,
+            device_index,
         }))
     }
 
@@ -402,7 +449,7 @@ impl H264VkDecoder {
         if self.state.is_some() {
             return Ok(());
         }
-        let st = DecoderState::create(sps, pps)?;
+        let st = DecoderState::create(sps, pps, self.device_index)?;
         self.state = Some(st);
         Ok(())
     }
@@ -511,34 +558,74 @@ impl oxideav_core::Decoder for H264VkDecoder {
 // ─────────────────────────── DecoderState — heavy lifting ────────────────────
 
 impl DecoderState {
-    fn create(sps: &H264Sps, pps: &H264Pps) -> Result<Self> {
+    fn create(sps: &H264Sps, pps: &H264Pps, device_index: u32) -> Result<Self> {
         // ── Instance ────────────────────────────────────────────
         let instance = Instance::new("oxideav-vulkan-video", VK_API_VERSION_1_2)
             .map_err(|e| Error::unsupported(format!("vulkan-video: {e}")))?;
 
         // ── Pick a video-decode-capable physical device ─────────
+        //
+        // `device_index` is interpreted against the *same* filter
+        // `engine_info()` applies (see `crate::engine`): every
+        // physical device whose type is Discrete/Integrated/Virtual
+        // GPU OR that advertises at least one `VK_KHR_video_*`
+        // extension is included, in `Instance::physical_devices()`
+        // enumeration order. The two MUST stay in sync — an
+        // `engine_info()` consumer that prints "device 1" and then
+        // passes `with_device_index(1)` expects the decoder to bind
+        // to that exact same physical device.
         if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: enumerating physical devices");}
         let devices = instance
             .physical_devices()
             .map_err(|e| Error::unsupported(format!("vulkan-video: {e}")))?;
         if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: {} physical devices found", devices.len());}
 
-        let mut chosen: Option<(usize, u32)> = None;
-        for (i, d) in devices.iter().enumerate() {
-            let support = d.supports_video_extensions();
-            if !support.queue_khr || !support.decode_h264 {
-                continue;
-            }
-            if let Some(&q) = d.video_queue_family_indices().first() {
-                chosen = Some((i, q));
-                break;
-            }
+        // Filter to the same set engine_info() exposes.
+        let filtered_indices: Vec<usize> = devices
+            .iter()
+            .enumerate()
+            .filter(|(_, d)| engine_info_filter_admits(d))
+            .map(|(i, _)| i)
+            .collect();
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!(
+                "vulkan-video: {} physical device(s) survive engine_info filter",
+                filtered_indices.len(),
+            );
         }
-        let (i, qfi) = chosen.ok_or_else(|| {
-            Error::unsupported("vulkan-video: no physical device supports H.264 decode")
-        })?;
-        let pd_handle = devices[i].handle();
-        if std::env::var("OXIDEAV_VK_TRACE").is_ok() { eprintln!("vulkan-video: chosen physical device {} with qfi={}", i, qfi);}
+        if (device_index as usize) >= filtered_indices.len() {
+            return Err(Error::unsupported(format!(
+                "vulkan-video: device_index {device_index} out of range (0..{})",
+                filtered_indices.len()
+            )));
+        }
+        let raw_idx = filtered_indices[device_index as usize];
+        let chosen_dev = &devices[raw_idx];
+        let support = chosen_dev.supports_video_extensions();
+        if !support.queue_khr || !support.decode_h264 {
+            return Err(Error::unsupported(format!(
+                "vulkan-video: device_index {device_index} does not support H.264 decode \
+                 (queue_khr={} decode_h264={})",
+                support.queue_khr, support.decode_h264
+            )));
+        }
+        let qfi = chosen_dev
+            .video_queue_family_indices()
+            .first()
+            .copied()
+            .ok_or_else(|| {
+                Error::unsupported(format!(
+                    "vulkan-video: device_index {device_index} advertises decode_h264 \
+                     but reports no video-capable queue family"
+                ))
+            })?;
+        let pd_handle = chosen_dev.handle();
+        if std::env::var("OXIDEAV_VK_TRACE").is_ok() {
+            eprintln!(
+                "vulkan-video: chosen filtered device_index={} (raw {}) with qfi={}",
+                device_index, raw_idx, qfi,
+            );
+        }
         // Re-enumerate so we don't keep the borrow on `instance` while
         // using `instance` later.
         drop(devices);
