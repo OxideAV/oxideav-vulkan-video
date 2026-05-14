@@ -17,12 +17,22 @@
 //!   * If the driver crashes, the process is killed by the signal and
 //!     the parent's `Command::status()` reports `signal: 11`.
 
+#[cfg(not(any(target_os = "linux", target_os = "windows")))]
+fn main() {
+    eprintln!("round4_decode_helper: Vulkan Video is Linux/Windows-only; nothing to do here.");
+}
+
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 use std::path::PathBuf;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 use std::process::ExitCode;
 
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 use oxideav_core::{time::TimeBase, CodecId, CodecParameters, Frame, Packet};
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 use oxideav_vulkan_video::decoder::H264VkDecoder;
 
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 fn main() -> ExitCode {
     let fixture = match std::env::var("OXIDEAV_VK_FIXTURE") {
         Ok(p) => PathBuf::from(p),
