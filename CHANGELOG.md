@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2](https://github.com/OxideAV/oxideav-vulkan-video/compare/v0.0.1...v0.0.2) - 2026-05-14
+
+### Other
+
+- cfg-gate round4_decode_helper to Linux/Windows
+- use c_char for VkExtensionProperties.extension_name on all targets
+- fix NVIDIA-driver SIGSEGV during vkQueueSubmit (5 VUIDs + 1 Drop bug)
+- apply rustfmt layout + clippy lints across the FFI surface
+- skip frameworks_load + vtable_resolves on hosts without the driver
+- honour CodecParameters::device_index for VkPhysicalDevice selection
+- implement engine_info() — enumerate physical devices + per-codec video caps
+
 ### Fixed — Round 4 SIGSEGV diagnosis + repair
 
 The Round 4 `vkQueueSubmit`-time NVIDIA SIGSEGV (RTX 5080 / driver
