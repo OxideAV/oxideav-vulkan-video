@@ -352,11 +352,12 @@ mod tests {
 
     #[test]
     fn extension_name_string_handles_empty_and_utf8() {
-        let buf = [0i8; 16];
+        use std::os::raw::c_char;
+        let buf: [c_char; 16] = [0; 16];
         assert_eq!(extension_name_string(&buf), "");
-        let mut buf = [0i8; 16];
+        let mut buf: [c_char; 16] = [0; 16];
         for (i, b) in b"hello".iter().enumerate() {
-            buf[i] = *b as i8;
+            buf[i] = *b as c_char;
         }
         assert_eq!(extension_name_string(&buf), "hello");
     }

@@ -21,6 +21,7 @@
 //!   tracked on the session and freed in `Drop`.
 
 use std::ffi::c_void;
+use std::os::raw::c_char;
 use std::ptr;
 
 use crate::device::Device;
@@ -254,14 +255,14 @@ impl<'device> VideoSession<'device> {
         let std_header_version = if caps.std_header_version.spec_version != 0 {
             caps.std_header_version
         } else {
-            let mut name = [0i8; VK_MAX_EXTENSION_NAME_SIZE];
+            let mut name: [c_char; VK_MAX_EXTENSION_NAME_SIZE] = [0; VK_MAX_EXTENSION_NAME_SIZE];
             for (i, b) in VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_EXTENSION_NAME
                 .as_bytes()
                 .iter()
                 .take(VK_MAX_EXTENSION_NAME_SIZE - 1)
                 .enumerate()
             {
-                name[i] = *b as i8;
+                name[i] = *b as c_char;
             }
             VkExtensionProperties {
                 extension_name: name,
