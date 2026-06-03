@@ -47,11 +47,15 @@ use oxideav_core::{HwCodecCaps, HwDeviceInfo};
 
 use crate::physical_device::{PhysicalDevice, PhysicalDeviceType, VideoExtensionSupport};
 use crate::sys::{
-    vk_api_version_major, vk_api_version_minor, vk_api_version_patch, StdVideoH264ProfileIdc,
-    VkPhysicalDeviceMemoryProperties, STD_VIDEO_H264_PROFILE_IDC_HIGH, VK_API_VERSION_1_2,
-    VK_MEMORY_HEAP_DEVICE_LOCAL_BIT,
+    vk_api_version_major, vk_api_version_minor, vk_api_version_patch, StdVideoAV1Profile,
+    StdVideoH264ProfileIdc, StdVideoH265ProfileIdc, VkPhysicalDeviceMemoryProperties,
+    STD_VIDEO_AV1_PROFILE_MAIN, STD_VIDEO_H264_PROFILE_IDC_HIGH, STD_VIDEO_H265_PROFILE_IDC_MAIN,
+    VK_API_VERSION_1_2, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT,
 };
-use crate::video::query_video_decode_h264_capabilities;
+use crate::video::{
+    query_video_decode_av1_capabilities, query_video_decode_h264_capabilities,
+    query_video_decode_h265_capabilities,
+};
 use crate::Instance;
 
 /// Enumerate Vulkan Video engines on this host.
@@ -152,10 +156,10 @@ fn build_codec_caps(pd: &PhysicalDevice<'_>, video: &VideoExtensionSupport) -> V
         codecs.push(build_h264_caps(pd, video));
     }
     if video.decode_h265 || video.encode_h265 {
-        codecs.push(build_hevc_caps(video));
+        codecs.push(build_hevc_caps(pd, video));
     }
     if video.decode_av1 {
-        codecs.push(build_av1_caps());
+        codecs.push(build_av1_caps(pd));
     }
 
     codecs
@@ -215,11 +219,15 @@ fn build_h264_caps(pd: &PhysicalDevice<'_>, video: &VideoExtensionSupport) -> Hw
     caps
 }
 
-/// HEVC: decode/encode flags from the extension list. Capability-query
-/// plumbing for H.265 isn't wired into `sys.rs` yet; the dimensions
-/// stay `None`.
-fn build_hevc_caps(video: &VideoExtensionSupport) -> HwCodecCaps {
-    HwCodecCaps {
+/// HEVC: query the actual decode capabilities for the H.265 Main
+/// profile when decode is advertised. Main is the universally-
+/// supported 8-bit 4:2:0 profile — Main 10 / Range Extensions are a
+/// follow-up (they need different bit-depth flags in the chained
+/// profile struct). Encode is reported as a flag based on the
+/// extension list; the matching `VkVideoEncodeH265CapabilitiesKHR`
+/// plumbing isn't wired up.
+fn build_hevc_caps(pd: &PhysicalDevice<'_>, video: &VideoExtensionSupport) -> HwCodecCaps {
+    let mut caps = HwCodecCaps {
         codec: "hevc".to_string(),
         decode: video.decode_h265,
         encode: video.encode_h265,
@@ -228,14 +236,42 @@ fn build_hevc_caps(video: &VideoExtensionSupport) -> HwCodecCaps {
         max_bit_depth: Some(8),
         profiles: Vec::new(),
         extra: Vec::new(),
+    };
+
+    if video.decode_h265 {
+        let profile: StdVideoH265ProfileIdc = STD_VIDEO_H265_PROFILE_IDC_MAIN;
+        if let Ok(h265) = query_video_decode_h265_capabilities(pd, profile) {
+            caps.max_width = Some(h265.max_coded_extent.0);
+            caps.max_height = Some(h265.max_coded_extent.1);
+            caps.profiles = vec!["Main".to_string()];
+            caps.extra
+                .push(("max_dpb_slots".to_string(), h265.max_dpb_slots.to_string()));
+            caps.extra.push((
+                "max_active_reference_pictures".to_string(),
+                h265.max_active_reference_pictures.to_string(),
+            ));
+            caps.extra
+                .push(("max_level_idc".to_string(), h265.max_level_idc.to_string()));
+            let std_header = extension_name_string(&h265.std_header_version.extension_name);
+            if !std_header.is_empty() {
+                caps.extra.push(("std_header".to_string(), std_header));
+            }
+            caps.extra.push((
+                "std_header_version".to_string(),
+                format_video_std_version(h265.std_header_version.spec_version),
+            ));
+        }
     }
+
+    caps
 }
 
-/// AV1: decode flag from the extension list. Vulkan Video does not
-/// (yet) standardise an `_encode_av1` extension; encode is hard-
-/// coded `false` here.
-fn build_av1_caps() -> HwCodecCaps {
-    HwCodecCaps {
+/// AV1: query the actual decode capabilities for the Main profile
+/// (8-bit / 10-bit 4:2:0, no film-grain commitment). Vulkan Video
+/// does not standardise an `_encode_av1` extension; encode is
+/// hard-coded `false` here.
+fn build_av1_caps(pd: &PhysicalDevice<'_>) -> HwCodecCaps {
+    let mut caps = HwCodecCaps {
         codec: "av1".to_string(),
         decode: true,
         encode: false,
@@ -244,7 +280,32 @@ fn build_av1_caps() -> HwCodecCaps {
         max_bit_depth: Some(8),
         profiles: Vec::new(),
         extra: Vec::new(),
+    };
+
+    let profile: StdVideoAV1Profile = STD_VIDEO_AV1_PROFILE_MAIN;
+    if let Ok(av1) = query_video_decode_av1_capabilities(pd, profile, false) {
+        caps.max_width = Some(av1.max_coded_extent.0);
+        caps.max_height = Some(av1.max_coded_extent.1);
+        caps.profiles = vec!["Main".to_string()];
+        caps.extra
+            .push(("max_dpb_slots".to_string(), av1.max_dpb_slots.to_string()));
+        caps.extra.push((
+            "max_active_reference_pictures".to_string(),
+            av1.max_active_reference_pictures.to_string(),
+        ));
+        caps.extra
+            .push(("max_level".to_string(), av1.max_level.to_string()));
+        let std_header = extension_name_string(&av1.std_header_version.extension_name);
+        if !std_header.is_empty() {
+            caps.extra.push(("std_header".to_string(), std_header));
+        }
+        caps.extra.push((
+            "std_header_version".to_string(),
+            format_video_std_version(av1.std_header_version.spec_version),
+        ));
     }
+
+    caps
 }
 
 /// `true` for device types that are worth surfacing to a consumer

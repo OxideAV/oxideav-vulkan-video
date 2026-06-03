@@ -28,21 +28,28 @@ use crate::device::Device;
 use crate::instance::VkError;
 use crate::physical_device::PhysicalDevice;
 use crate::sys::{
-    self, StdVideoH264LevelIdc, StdVideoH264ProfileIdc, VkBindVideoSessionMemoryInfoKHR,
-    VkDeviceMemory, VkExtensionProperties, VkExtent2D, VkMemoryAllocateInfo, VkMemoryRequirements,
-    VkPhysicalDeviceMemoryProperties, VkVideoCapabilitiesKHR, VkVideoDecodeCapabilitiesKHR,
-    VkVideoDecodeH264CapabilitiesKHR, VkVideoDecodeH264ProfileInfoKHR, VkVideoProfileInfoKHR,
-    VkVideoSessionCreateInfoKHR, VkVideoSessionKHR, VkVideoSessionMemoryRequirementsKHR,
-    VK_FORMAT_G8_B8R8_2PLANE_420_UNORM, VK_MAX_EXTENSION_NAME_SIZE,
-    VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_EXTENSION_NAME,
+    self, StdVideoAV1Level, StdVideoAV1Profile, StdVideoH264LevelIdc, StdVideoH264ProfileIdc,
+    StdVideoH265LevelIdc, StdVideoH265ProfileIdc, VkBindVideoSessionMemoryInfoKHR, VkDeviceMemory,
+    VkExtensionProperties, VkExtent2D, VkMemoryAllocateInfo, VkMemoryRequirements,
+    VkPhysicalDeviceMemoryProperties, VkVideoCapabilitiesKHR, VkVideoDecodeAV1CapabilitiesKHR,
+    VkVideoDecodeAV1ProfileInfoKHR, VkVideoDecodeCapabilitiesKHR, VkVideoDecodeH264CapabilitiesKHR,
+    VkVideoDecodeH264ProfileInfoKHR, VkVideoDecodeH265CapabilitiesKHR,
+    VkVideoDecodeH265ProfileInfoKHR, VkVideoProfileInfoKHR, VkVideoSessionCreateInfoKHR,
+    VkVideoSessionKHR, VkVideoSessionMemoryRequirementsKHR, VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
+    VK_MAX_EXTENSION_NAME_SIZE, VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_EXTENSION_NAME,
     VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_SPEC_VERSION,
     VK_STRUCTURE_TYPE_BIND_VIDEO_SESSION_MEMORY_INFO_KHR, VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-    VK_STRUCTURE_TYPE_VIDEO_CAPABILITIES_KHR, VK_STRUCTURE_TYPE_VIDEO_DECODE_CAPABILITIES_KHR,
+    VK_STRUCTURE_TYPE_VIDEO_CAPABILITIES_KHR, VK_STRUCTURE_TYPE_VIDEO_DECODE_AV1_CAPABILITIES_KHR,
+    VK_STRUCTURE_TYPE_VIDEO_DECODE_AV1_PROFILE_INFO_KHR,
+    VK_STRUCTURE_TYPE_VIDEO_DECODE_CAPABILITIES_KHR,
     VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_CAPABILITIES_KHR,
-    VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_PROFILE_INFO_KHR, VK_STRUCTURE_TYPE_VIDEO_PROFILE_INFO_KHR,
+    VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_PROFILE_INFO_KHR,
+    VK_STRUCTURE_TYPE_VIDEO_DECODE_H265_CAPABILITIES_KHR,
+    VK_STRUCTURE_TYPE_VIDEO_DECODE_H265_PROFILE_INFO_KHR, VK_STRUCTURE_TYPE_VIDEO_PROFILE_INFO_KHR,
     VK_STRUCTURE_TYPE_VIDEO_SESSION_CREATE_INFO_KHR,
     VK_STRUCTURE_TYPE_VIDEO_SESSION_MEMORY_REQUIREMENTS_KHR, VK_SUCCESS,
-    VK_VIDEO_CHROMA_SUBSAMPLING_420_BIT_KHR, VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR,
+    VK_VIDEO_CHROMA_SUBSAMPLING_420_BIT_KHR, VK_VIDEO_CODEC_OPERATION_DECODE_AV1_BIT_KHR,
+    VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR, VK_VIDEO_CODEC_OPERATION_DECODE_H265_BIT_KHR,
     VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR, VK_VIDEO_DECODE_H264_PICTURE_LAYOUT_PROGRESSIVE_KHR,
 };
 
@@ -176,6 +183,273 @@ pub fn query_video_decode_h264_capabilities(
         max_dpb_slots: caps.max_dpb_slots,
         max_active_reference_pictures: caps.max_active_reference_pictures,
         max_level_idc: h264_caps.max_level_idc,
+        std_header_version: caps.std_header_version,
+        capability_flags: caps.flags,
+        decode_capability_flags: decode_caps.flags,
+        min_bitstream_buffer_offset_alignment: caps.min_bitstream_buffer_offset_alignment,
+        min_bitstream_buffer_size_alignment: caps.min_bitstream_buffer_size_alignment,
+    })
+}
+
+// ─────────────────────────── H.265 (HEVC) capabilities ───────────────────────
+
+/// Decoded form of the H.265 decode capability chain returned by
+/// `vkGetPhysicalDeviceVideoCapabilitiesKHR`. Shares the common
+/// `VkVideoCapabilitiesKHR` fields with the H.264 variant and adds
+/// `max_level_idc` from `VkVideoDecodeH265CapabilitiesKHR`.
+#[derive(Debug, Clone)]
+pub struct VideoDecodeH265Capabilities {
+    /// Smallest image extent the decoder accepts (typically 16x16 or
+    /// 8x8 for HEVC CTU-aligned).
+    pub min_coded_extent: (u32, u32),
+    /// Largest image extent the decoder will produce.
+    pub max_coded_extent: (u32, u32),
+    /// Granularity (in pixels) at which `decode_target` regions must
+    /// be aligned.
+    pub picture_access_granularity: (u32, u32),
+    /// Maximum DPB slot count the implementation will support for the
+    /// queried profile.
+    pub max_dpb_slots: u32,
+    /// Maximum count of active reference pictures simultaneously
+    /// drawable from the DPB.
+    pub max_active_reference_pictures: u32,
+    /// Maximum H.265 level the implementation supports for the
+    /// queried profile, as a `StdVideoH265LevelIdc` enum index.
+    pub max_level_idc: StdVideoH265LevelIdc,
+    /// Implementation-supplied `VkExtensionProperties` describing the
+    /// `VK_STD_vulkan_video_codec_h265_decode` header version the
+    /// driver is implemented against.
+    pub std_header_version: VkExtensionProperties,
+    /// Capability flags from `VkVideoCapabilitiesKHR.flags` (raw bits).
+    pub capability_flags: u32,
+    /// Decode-specific capability flags from
+    /// `VkVideoDecodeCapabilitiesKHR.flags` (raw bits).
+    pub decode_capability_flags: u32,
+    /// Bitstream-buffer offset alignment.
+    pub min_bitstream_buffer_offset_alignment: u64,
+    /// Bitstream-buffer size alignment.
+    pub min_bitstream_buffer_size_alignment: u64,
+}
+
+/// Run `vkGetPhysicalDeviceVideoCapabilitiesKHR` for an H.265 decode
+/// profile.
+///
+/// `profile_idc` is one of the `STD_VIDEO_H265_PROFILE_IDC_*`
+/// constants in [`crate::sys`] (e.g.
+/// `STD_VIDEO_H265_PROFILE_IDC_MAIN`). The function builds the
+/// mandatory chained `VkVideoProfileInfoKHR` →
+/// `VkVideoDecodeH265ProfileInfoKHR` and a matching
+/// `VkVideoCapabilitiesKHR` → `VkVideoDecodeCapabilitiesKHR` →
+/// `VkVideoDecodeH265CapabilitiesKHR` output chain.
+///
+/// Main/Main-still-picture profiles take `8_BIT` luma/chroma. Main-10
+/// requires the caller to swap the `*_BIT_DEPTH_*` arguments to a
+/// 10-bit constant — that's not exposed yet (profile-driven bit
+/// depth is a follow-up; the 8-bit Main case is what every consumer
+/// codec entry needs for the `engine_info()` row).
+pub fn query_video_decode_h265_capabilities(
+    physical_device: &PhysicalDevice<'_>,
+    profile_idc: StdVideoH265ProfileIdc,
+) -> Result<VideoDecodeH265Capabilities, VkError> {
+    let fns = physical_device.instance_fns();
+    let get_caps =
+        fns.get_physical_device_video_capabilities_khr
+            .ok_or(VkError::MissingFunction(
+                "vkGetPhysicalDeviceVideoCapabilitiesKHR",
+            ))?;
+
+    let h265_profile = VkVideoDecodeH265ProfileInfoKHR {
+        s_type: VK_STRUCTURE_TYPE_VIDEO_DECODE_H265_PROFILE_INFO_KHR,
+        p_next: ptr::null(),
+        std_profile_idc: profile_idc,
+    };
+    let profile = VkVideoProfileInfoKHR {
+        s_type: VK_STRUCTURE_TYPE_VIDEO_PROFILE_INFO_KHR,
+        p_next: &h265_profile as *const _ as *const c_void,
+        video_codec_operation: VK_VIDEO_CODEC_OPERATION_DECODE_H265_BIT_KHR,
+        chroma_subsampling: VK_VIDEO_CHROMA_SUBSAMPLING_420_BIT_KHR,
+        luma_bit_depth: VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR,
+        chroma_bit_depth: VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR,
+    };
+
+    let mut h265_caps = VkVideoDecodeH265CapabilitiesKHR {
+        s_type: VK_STRUCTURE_TYPE_VIDEO_DECODE_H265_CAPABILITIES_KHR,
+        p_next: ptr::null_mut(),
+        max_level_idc: 0,
+    };
+    let mut decode_caps = VkVideoDecodeCapabilitiesKHR {
+        s_type: VK_STRUCTURE_TYPE_VIDEO_DECODE_CAPABILITIES_KHR,
+        p_next: &mut h265_caps as *mut _ as *mut c_void,
+        flags: 0,
+    };
+    let mut caps = VkVideoCapabilitiesKHR {
+        s_type: VK_STRUCTURE_TYPE_VIDEO_CAPABILITIES_KHR,
+        p_next: &mut decode_caps as *mut _ as *mut c_void,
+        flags: 0,
+        min_bitstream_buffer_offset_alignment: 0,
+        min_bitstream_buffer_size_alignment: 0,
+        picture_access_granularity: VkExtent2D::default(),
+        min_coded_extent: VkExtent2D::default(),
+        max_coded_extent: VkExtent2D::default(),
+        max_dpb_slots: 0,
+        max_active_reference_pictures: 0,
+        std_header_version: VkExtensionProperties {
+            extension_name: [0; VK_MAX_EXTENSION_NAME_SIZE],
+            spec_version: 0,
+        },
+    };
+
+    // SAFETY: every chain pointer references a local that lives until
+    // the call returns; each struct's `sType` discriminant is set per
+    // the spec.
+    let result = unsafe { get_caps(physical_device.handle(), &profile, &mut caps) };
+    if result != VK_SUCCESS {
+        return Err(VkError::Result {
+            op: "vkGetPhysicalDeviceVideoCapabilitiesKHR",
+            result,
+        });
+    }
+
+    Ok(VideoDecodeH265Capabilities {
+        min_coded_extent: (caps.min_coded_extent.width, caps.min_coded_extent.height),
+        max_coded_extent: (caps.max_coded_extent.width, caps.max_coded_extent.height),
+        picture_access_granularity: (
+            caps.picture_access_granularity.width,
+            caps.picture_access_granularity.height,
+        ),
+        max_dpb_slots: caps.max_dpb_slots,
+        max_active_reference_pictures: caps.max_active_reference_pictures,
+        max_level_idc: h265_caps.max_level_idc,
+        std_header_version: caps.std_header_version,
+        capability_flags: caps.flags,
+        decode_capability_flags: decode_caps.flags,
+        min_bitstream_buffer_offset_alignment: caps.min_bitstream_buffer_offset_alignment,
+        min_bitstream_buffer_size_alignment: caps.min_bitstream_buffer_size_alignment,
+    })
+}
+
+// ─────────────────────────── AV1 capabilities ────────────────────────────────
+
+/// Decoded form of the AV1 decode capability chain returned by
+/// `vkGetPhysicalDeviceVideoCapabilitiesKHR`. Mirrors the H.264 /
+/// H.265 shape with `max_level` from `VkVideoDecodeAV1CapabilitiesKHR`.
+#[derive(Debug, Clone)]
+pub struct VideoDecodeAV1Capabilities {
+    /// Smallest image extent the decoder accepts.
+    pub min_coded_extent: (u32, u32),
+    /// Largest image extent the decoder will produce.
+    pub max_coded_extent: (u32, u32),
+    /// Picture-access granularity (super-block alignment for AV1).
+    pub picture_access_granularity: (u32, u32),
+    /// Maximum DPB slot count the implementation supports.
+    pub max_dpb_slots: u32,
+    /// Maximum count of active reference pictures simultaneously
+    /// drawable from the DPB. AV1 uses 8 reference frames per the
+    /// spec, but Vulkan may report fewer if the profile/level chosen
+    /// is constrained.
+    pub max_active_reference_pictures: u32,
+    /// Maximum AV1 level the implementation supports for the queried
+    /// profile, as a `StdVideoAV1Level` enum index.
+    pub max_level: StdVideoAV1Level,
+    /// Implementation-supplied `VkExtensionProperties` describing the
+    /// `VK_STD_vulkan_video_codec_av1_decode` header version.
+    pub std_header_version: VkExtensionProperties,
+    /// Capability flags from `VkVideoCapabilitiesKHR.flags` (raw bits).
+    pub capability_flags: u32,
+    /// Decode-specific capability flags from
+    /// `VkVideoDecodeCapabilitiesKHR.flags` (raw bits).
+    pub decode_capability_flags: u32,
+    /// Bitstream-buffer offset alignment.
+    pub min_bitstream_buffer_offset_alignment: u64,
+    /// Bitstream-buffer size alignment.
+    pub min_bitstream_buffer_size_alignment: u64,
+}
+
+/// Run `vkGetPhysicalDeviceVideoCapabilitiesKHR` for an AV1 decode
+/// profile.
+///
+/// `profile` is one of the `STD_VIDEO_AV1_PROFILE_*` constants in
+/// [`crate::sys`]; in practice almost every dispatched query uses
+/// `STD_VIDEO_AV1_PROFILE_MAIN` (the 8-bit / 10-bit 4:2:0 baseline).
+///
+/// `film_grain_support` should be `false` for the capability query —
+/// the caller doesn't commit to providing film-grain params at this
+/// stage; if `true` is needed the function will pass `1` to the
+/// driver.
+pub fn query_video_decode_av1_capabilities(
+    physical_device: &PhysicalDevice<'_>,
+    profile: StdVideoAV1Profile,
+    film_grain_support: bool,
+) -> Result<VideoDecodeAV1Capabilities, VkError> {
+    let fns = physical_device.instance_fns();
+    let get_caps =
+        fns.get_physical_device_video_capabilities_khr
+            .ok_or(VkError::MissingFunction(
+                "vkGetPhysicalDeviceVideoCapabilitiesKHR",
+            ))?;
+
+    let av1_profile = VkVideoDecodeAV1ProfileInfoKHR {
+        s_type: VK_STRUCTURE_TYPE_VIDEO_DECODE_AV1_PROFILE_INFO_KHR,
+        p_next: ptr::null(),
+        std_profile: profile,
+        film_grain_support: u32::from(film_grain_support),
+    };
+    let profile_info = VkVideoProfileInfoKHR {
+        s_type: VK_STRUCTURE_TYPE_VIDEO_PROFILE_INFO_KHR,
+        p_next: &av1_profile as *const _ as *const c_void,
+        video_codec_operation: VK_VIDEO_CODEC_OPERATION_DECODE_AV1_BIT_KHR,
+        chroma_subsampling: VK_VIDEO_CHROMA_SUBSAMPLING_420_BIT_KHR,
+        luma_bit_depth: VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR,
+        chroma_bit_depth: VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR,
+    };
+
+    let mut av1_caps = VkVideoDecodeAV1CapabilitiesKHR {
+        s_type: VK_STRUCTURE_TYPE_VIDEO_DECODE_AV1_CAPABILITIES_KHR,
+        p_next: ptr::null_mut(),
+        max_level: 0,
+    };
+    let mut decode_caps = VkVideoDecodeCapabilitiesKHR {
+        s_type: VK_STRUCTURE_TYPE_VIDEO_DECODE_CAPABILITIES_KHR,
+        p_next: &mut av1_caps as *mut _ as *mut c_void,
+        flags: 0,
+    };
+    let mut caps = VkVideoCapabilitiesKHR {
+        s_type: VK_STRUCTURE_TYPE_VIDEO_CAPABILITIES_KHR,
+        p_next: &mut decode_caps as *mut _ as *mut c_void,
+        flags: 0,
+        min_bitstream_buffer_offset_alignment: 0,
+        min_bitstream_buffer_size_alignment: 0,
+        picture_access_granularity: VkExtent2D::default(),
+        min_coded_extent: VkExtent2D::default(),
+        max_coded_extent: VkExtent2D::default(),
+        max_dpb_slots: 0,
+        max_active_reference_pictures: 0,
+        std_header_version: VkExtensionProperties {
+            extension_name: [0; VK_MAX_EXTENSION_NAME_SIZE],
+            spec_version: 0,
+        },
+    };
+
+    // SAFETY: chain pointers reference locals that live until the
+    // call returns; each struct's `sType` is set per the spec.
+    let result = unsafe { get_caps(physical_device.handle(), &profile_info, &mut caps) };
+    if result != VK_SUCCESS {
+        return Err(VkError::Result {
+            op: "vkGetPhysicalDeviceVideoCapabilitiesKHR",
+            result,
+        });
+    }
+
+    Ok(VideoDecodeAV1Capabilities {
+        min_coded_extent: (caps.min_coded_extent.width, caps.min_coded_extent.height),
+        max_coded_extent: (caps.max_coded_extent.width, caps.max_coded_extent.height),
+        picture_access_granularity: (
+            caps.picture_access_granularity.width,
+            caps.picture_access_granularity.height,
+        ),
+        max_dpb_slots: caps.max_dpb_slots,
+        max_active_reference_pictures: caps.max_active_reference_pictures,
+        max_level: av1_caps.max_level,
         std_header_version: caps.std_header_version,
         capability_flags: caps.flags,
         decode_capability_flags: decode_caps.flags,

@@ -370,3 +370,55 @@ fn vulkan_round4_struct_field_offsets_match_c_abi() {
     assert_eq!(offset_of!(VkVideoProfileListInfoKHR, profile_count), 16);
     assert_eq!(offset_of!(VkVideoProfileListInfoKHR, p_profiles), 24);
 }
+
+/// Round 8: H.265 and AV1 decode profile/capability structs added to
+/// `sys.rs` so `engine_info()` can populate the matching
+/// `HwCodecCaps` rows with real max-extent / level / DPB-slot
+/// numbers. Sizes / offsets verified against `cc -I…` of
+/// `<vulkan/vulkan_core.h>` on x86_64 Linux against the spec-published
+/// Khronos headers (`VkVideoDecodeH265ProfileInfoKHR`,
+/// `VkVideoDecodeH265CapabilitiesKHR`, `VkVideoDecodeAV1ProfileInfoKHR`,
+/// `VkVideoDecodeAV1CapabilitiesKHR` — each 24 bytes with the field
+/// offsets below).
+#[test]
+fn vulkan_round8_h265_av1_caps_struct_sizes_match_c_abi() {
+    assert_eq!(std::mem::size_of::<VkVideoDecodeH265ProfileInfoKHR>(), 24);
+    assert_eq!(std::mem::size_of::<VkVideoDecodeH265CapabilitiesKHR>(), 24);
+    assert_eq!(std::mem::size_of::<VkVideoDecodeAV1ProfileInfoKHR>(), 24);
+    assert_eq!(std::mem::size_of::<VkVideoDecodeAV1CapabilitiesKHR>(), 24);
+}
+
+#[test]
+fn vulkan_round8_h265_av1_caps_struct_field_offsets_match_c_abi() {
+    use std::mem::offset_of;
+
+    // ── VkVideoDecodeH265ProfileInfoKHR ──────────────────────
+    assert_eq!(offset_of!(VkVideoDecodeH265ProfileInfoKHR, s_type), 0);
+    assert_eq!(offset_of!(VkVideoDecodeH265ProfileInfoKHR, p_next), 8);
+    assert_eq!(
+        offset_of!(VkVideoDecodeH265ProfileInfoKHR, std_profile_idc),
+        16
+    );
+
+    // ── VkVideoDecodeH265CapabilitiesKHR ─────────────────────
+    assert_eq!(offset_of!(VkVideoDecodeH265CapabilitiesKHR, s_type), 0);
+    assert_eq!(offset_of!(VkVideoDecodeH265CapabilitiesKHR, p_next), 8);
+    assert_eq!(
+        offset_of!(VkVideoDecodeH265CapabilitiesKHR, max_level_idc),
+        16
+    );
+
+    // ── VkVideoDecodeAV1ProfileInfoKHR ───────────────────────
+    assert_eq!(offset_of!(VkVideoDecodeAV1ProfileInfoKHR, s_type), 0);
+    assert_eq!(offset_of!(VkVideoDecodeAV1ProfileInfoKHR, p_next), 8);
+    assert_eq!(offset_of!(VkVideoDecodeAV1ProfileInfoKHR, std_profile), 16);
+    assert_eq!(
+        offset_of!(VkVideoDecodeAV1ProfileInfoKHR, film_grain_support),
+        20
+    );
+
+    // ── VkVideoDecodeAV1CapabilitiesKHR ──────────────────────
+    assert_eq!(offset_of!(VkVideoDecodeAV1CapabilitiesKHR, s_type), 0);
+    assert_eq!(offset_of!(VkVideoDecodeAV1CapabilitiesKHR, p_next), 8);
+    assert_eq!(offset_of!(VkVideoDecodeAV1CapabilitiesKHR, max_level), 16);
+}

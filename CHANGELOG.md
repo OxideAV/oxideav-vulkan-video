@@ -7,6 +7,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Round 8 HEVC + AV1 capability queries
+
+- New public function
+  `video::query_video_decode_h265_capabilities(physical_device,
+  profile_idc) -> Result<VideoDecodeH265Capabilities, VkError>`.
+  Builds the spec-mandated chained `VkVideoProfileInfoKHR` →
+  `VkVideoDecodeH265ProfileInfoKHR` input chain and a matching
+  `VkVideoCapabilitiesKHR` → `VkVideoDecodeCapabilitiesKHR` →
+  `VkVideoDecodeH265CapabilitiesKHR` output chain, calls
+  `vkGetPhysicalDeviceVideoCapabilitiesKHR`, and decodes the result
+  into a plain struct with `max_coded_extent`, `max_dpb_slots`,
+  `max_active_reference_pictures`, `max_level_idc`,
+  `std_header_version`, and the bitstream-buffer alignment fields.
+  The H.265 Main profile (8-bit 4:2:0) is the practical entry — Main
+  10 / Range Extensions / SCC need different bit-depth flags and are
+  a follow-up.
+- New public function
+  `video::query_video_decode_av1_capabilities(physical_device,
+  profile, film_grain_support) -> Result<VideoDecodeAV1Capabilities,
+  VkError>`. Same three-level chained-output pattern with
+  `VkVideoDecodeAV1ProfileInfoKHR` / `VkVideoDecodeAV1CapabilitiesKHR`.
+  AV1 Main, 8-bit 4:2:0 is the entry; `film_grain_support: false`
+  matches the universal capability-query default (`true` would
+  commit the application to providing film-grain params on every
+  decoded frame).
+- `engine_info()` now fills `max_width` / `max_height` /
+  `max_dpb_slots` / `max_active_reference_pictures` / `max_level_idc`
+  (H.265) / `max_level` (AV1) / `std_header` / `std_header_version`
+  on the HEVC and AV1 `HwCodecCaps` rows it surfaces to the CLI
+  `info` command. Capability-query failure paths keep the
+  decode-flag set and leave the dimension fields `None`, matching
+  the H.264 behaviour landed in Round 6.
+- `sys.rs` extended with:
+  - Type aliases `StdVideoH265ProfileIdc`, `StdVideoH265LevelIdc`,
+    `StdVideoAV1Profile`, `StdVideoAV1Level` (all `i32` for the
+    C-enum signed-int storage the Vulkan std-video tables use).
+  - sType discriminants
+    `VK_STRUCTURE_TYPE_VIDEO_DECODE_H265_PROFILE_INFO_KHR =
+    1000187003`,
+    `VK_STRUCTURE_TYPE_VIDEO_DECODE_H265_CAPABILITIES_KHR =
+    1000187000`,
+    `VK_STRUCTURE_TYPE_VIDEO_DECODE_AV1_PROFILE_INFO_KHR =
+    1000512003`,
+    `VK_STRUCTURE_TYPE_VIDEO_DECODE_AV1_CAPABILITIES_KHR =
+    1000512000`.
+  - H.265 profile constants — Main (1), Main10 (2),
+    MainStillPicture (3), FormatRangeExtensions (4), SccExtensions
+    (5) — and level anchors (5.1 = 8, 6.2 = 12).
+  - AV1 profile constants — Main (0), High (1), Professional (2)
+    — and level anchors (5.1 = 13, 6.3 = 19).
+  - Std header version / extension name constants for the H.265
+    and AV1 decode std headers
+    (`VK_STD_vulkan_video_codec_h265_decode` and
+    `VK_STD_vulkan_video_codec_av1_decode`), each packed as
+    `VK_MAKE_VIDEO_STD_VERSION(1, 0, 0)`.
+  - Four new repr(C) structs —
+    `VkVideoDecodeH265ProfileInfoKHR`,
+    `VkVideoDecodeH265CapabilitiesKHR`,
+    `VkVideoDecodeAV1ProfileInfoKHR`,
+    `VkVideoDecodeAV1CapabilitiesKHR`. Sizes (24 B each) and every
+    field offset are cross-checked against the C ABI from
+    `<vulkan/vulkan_core.h>` in
+    `tests/struct_sizes.rs::vulkan_round8_h265_av1_caps_struct_*`.
+- Public lib re-exports added for the two new capability structs
+  and query functions.
+- New integration test `tests/round8_hevc_av1_caps.rs` —
+  `query_h265_decode_caps_main_profile`,
+  `query_av1_decode_caps_main_profile`. Skip-friendly when no
+  Vulkan ICD is reachable or the chosen device doesn't advertise
+  the matching `VK_KHR_video_decode_h265` /
+  `VK_KHR_video_decode_av1` extension. On hosts that have both
+  extensions the test asserts at-least-HD `max_coded_extent`, level
+  ≥ 5.1 for H.265, and `max_dpb_slots ≥ 1`.
+
 ### Fixed — Round 4 SIGSEGV diagnosis + repair
 
 The Round 4 `vkQueueSubmit`-time NVIDIA SIGSEGV (RTX 5080 / driver

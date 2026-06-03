@@ -68,7 +68,11 @@ pub mod engine;
 pub use device::{Device, Queue};
 pub use instance::{Instance, VkError};
 pub use physical_device::{PhysicalDevice, PhysicalDeviceProperties, VideoExtensionSupport};
-pub use video::{query_video_decode_h264_capabilities, VideoDecodeH264Capabilities, VideoSession};
+pub use video::{
+    query_video_decode_av1_capabilities, query_video_decode_h264_capabilities,
+    query_video_decode_h265_capabilities, VideoDecodeAV1Capabilities, VideoDecodeH264Capabilities,
+    VideoDecodeH265Capabilities, VideoSession,
+};
 
 #[cfg(feature = "registry")]
 pub use engine::engine_info;

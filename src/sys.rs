@@ -137,6 +137,26 @@ pub type StdVideoH264ProfileIdc = i32;
 /// the constants below.
 pub type StdVideoH264LevelIdc = i32;
 
+/// `StdVideoH265ProfileIdc` — index into the H.265 profile enum
+/// (Main=1, Main10=2, MainStillPicture=3, FormatRangeExtensions=4,
+/// SccExtensions=5). Stored as `i32` to match the C-enum signed-int
+/// storage that the Vulkan std-video tables use.
+pub type StdVideoH265ProfileIdc = i32;
+
+/// `StdVideoH265LevelIdc` — index into the H.265 level table
+/// (1.0=0, 2.0=1, 2.1=2, …, 5.1=8, 5.2=9, 6.0=10, 6.1=11, 6.2=12).
+pub type StdVideoH265LevelIdc = i32;
+
+/// `StdVideoAV1Profile` — AV1 profile enum (Main=0, High=1,
+/// Professional=2).
+pub type StdVideoAV1Profile = i32;
+
+/// `StdVideoAV1Level` — AV1 level enum (2.0=0 through 7.3=23). The
+/// Vulkan std table uses a flat 24-entry contiguous range so the
+/// numeric value carries no "level" semantics on its own — convert
+/// via the constants below.
+pub type StdVideoAV1Level = i32;
+
 /// `VkQueueFlags` — bitmask of the operations supported by a queue
 /// family. The bits we care about for video: `0x20` for decode and
 /// `0x40` for encode.
@@ -184,6 +204,14 @@ pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_CAPABILITIES_KHR: VkStructureType = 100
 pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_PROFILE_INFO_KHR: VkStructureType = 1000040003;
 /// `VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_CAPABILITIES_KHR = 1000040000`.
 pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_CAPABILITIES_KHR: VkStructureType = 1000040000;
+/// `VK_STRUCTURE_TYPE_VIDEO_DECODE_H265_PROFILE_INFO_KHR = 1000187003`.
+pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H265_PROFILE_INFO_KHR: VkStructureType = 1000187003;
+/// `VK_STRUCTURE_TYPE_VIDEO_DECODE_H265_CAPABILITIES_KHR = 1000187000`.
+pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_H265_CAPABILITIES_KHR: VkStructureType = 1000187000;
+/// `VK_STRUCTURE_TYPE_VIDEO_DECODE_AV1_PROFILE_INFO_KHR = 1000512003`.
+pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_AV1_PROFILE_INFO_KHR: VkStructureType = 1000512003;
+/// `VK_STRUCTURE_TYPE_VIDEO_DECODE_AV1_CAPABILITIES_KHR = 1000512000`.
+pub const VK_STRUCTURE_TYPE_VIDEO_DECODE_AV1_CAPABILITIES_KHR: VkStructureType = 1000512000;
 
 // ─────────────────────────── Queue flags ──────────────────────────────────────
 
@@ -292,6 +320,48 @@ pub const STD_VIDEO_H264_LEVEL_IDC_6_1: StdVideoH264LevelIdc = 17;
 /// `STD_VIDEO_H264_LEVEL_IDC_6_2 = 18`.
 pub const STD_VIDEO_H264_LEVEL_IDC_6_2: StdVideoH264LevelIdc = 18;
 
+// ─────────────────────────── H.265 profile / level IDC values ────────────────
+//
+// `vk_video/vulkan_video_codec_h265std.h` numbers the std H.265
+// profile enum as Main=1, Main10=2, MainStillPicture=3,
+// FormatRangeExtensions=4, SccExtensions=5. The level enum is
+// contiguous: 1.0=0, 2.0=1, 2.1=2, 3.0=3, 3.1=4, 4.0=5, 4.1=6,
+// 5.0=7, 5.1=8, 5.2=9, 6.0=10, 6.1=11, 6.2=12.
+
+/// `STD_VIDEO_H265_PROFILE_IDC_MAIN = 1`.
+pub const STD_VIDEO_H265_PROFILE_IDC_MAIN: StdVideoH265ProfileIdc = 1;
+/// `STD_VIDEO_H265_PROFILE_IDC_MAIN_10 = 2`.
+pub const STD_VIDEO_H265_PROFILE_IDC_MAIN_10: StdVideoH265ProfileIdc = 2;
+/// `STD_VIDEO_H265_PROFILE_IDC_MAIN_STILL_PICTURE = 3`.
+pub const STD_VIDEO_H265_PROFILE_IDC_MAIN_STILL_PICTURE: StdVideoH265ProfileIdc = 3;
+/// `STD_VIDEO_H265_PROFILE_IDC_FORMAT_RANGE_EXTENSIONS = 4`.
+pub const STD_VIDEO_H265_PROFILE_IDC_FORMAT_RANGE_EXTENSIONS: StdVideoH265ProfileIdc = 4;
+/// `STD_VIDEO_H265_PROFILE_IDC_SCC_EXTENSIONS = 5`.
+pub const STD_VIDEO_H265_PROFILE_IDC_SCC_EXTENSIONS: StdVideoH265ProfileIdc = 5;
+
+/// `STD_VIDEO_H265_LEVEL_IDC_5_1 = 8` — the 4K HEVC floor.
+pub const STD_VIDEO_H265_LEVEL_IDC_5_1: StdVideoH265LevelIdc = 8;
+/// `STD_VIDEO_H265_LEVEL_IDC_6_2 = 12` — the 8K HEVC ceiling.
+pub const STD_VIDEO_H265_LEVEL_IDC_6_2: StdVideoH265LevelIdc = 12;
+
+// ─────────────────────────── AV1 profile / level enum values ─────────────────
+//
+// `vk_video/vulkan_video_codec_av1std.h` defines:
+//   StdVideoAV1Profile { MAIN=0, HIGH=1, PROFESSIONAL=2 }
+//   StdVideoAV1Level { 2_0=0, 2_1=1, …, 6_3=19, 7_0=20, …, 7_3=23 }
+
+/// `STD_VIDEO_AV1_PROFILE_MAIN = 0`.
+pub const STD_VIDEO_AV1_PROFILE_MAIN: StdVideoAV1Profile = 0;
+/// `STD_VIDEO_AV1_PROFILE_HIGH = 1`.
+pub const STD_VIDEO_AV1_PROFILE_HIGH: StdVideoAV1Profile = 1;
+/// `STD_VIDEO_AV1_PROFILE_PROFESSIONAL = 2`.
+pub const STD_VIDEO_AV1_PROFILE_PROFESSIONAL: StdVideoAV1Profile = 2;
+
+/// `STD_VIDEO_AV1_LEVEL_5_1 = 13` — the 4K AV1 floor.
+pub const STD_VIDEO_AV1_LEVEL_5_1: StdVideoAV1Level = 13;
+/// `STD_VIDEO_AV1_LEVEL_6_3 = 19` — the 8K AV1 ceiling.
+pub const STD_VIDEO_AV1_LEVEL_6_3: StdVideoAV1Level = 19;
+
 // ─────────────────────────── H.264 decode std header version ─────────────────
 
 /// `VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_EXTENSION_NAME` —
@@ -304,6 +374,27 @@ pub const VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_EXTENSION_NAME: &str =
 /// `VK_MAKE_VIDEO_STD_VERSION(1, 0, 0)` ≡ `(1 << 22) | (0 << 12) | 0`.
 /// Minor/patch are zero so only the major-version field is non-zero.
 pub const VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_SPEC_VERSION: u32 = 1u32 << 22;
+
+/// `VK_STD_VULKAN_VIDEO_CODEC_H265_DECODE_EXTENSION_NAME` — extension
+/// name string for `VkVideoSessionCreateInfoKHR.pStdHeaderVersion` when
+/// constructing an H.265 decode session.
+pub const VK_STD_VULKAN_VIDEO_CODEC_H265_DECODE_EXTENSION_NAME: &str =
+    "VK_STD_vulkan_video_codec_h265_decode";
+
+/// `VK_STD_VULKAN_VIDEO_CODEC_H265_DECODE_SPEC_VERSION` packed —
+/// `VK_MAKE_VIDEO_STD_VERSION(1, 0, 0)`. Same encoding as the H.264
+/// constant above.
+pub const VK_STD_VULKAN_VIDEO_CODEC_H265_DECODE_SPEC_VERSION: u32 = 1u32 << 22;
+
+/// `VK_STD_VULKAN_VIDEO_CODEC_AV1_DECODE_EXTENSION_NAME` — extension
+/// name string for `VkVideoSessionCreateInfoKHR.pStdHeaderVersion` when
+/// constructing an AV1 decode session.
+pub const VK_STD_VULKAN_VIDEO_CODEC_AV1_DECODE_EXTENSION_NAME: &str =
+    "VK_STD_vulkan_video_codec_av1_decode";
+
+/// `VK_STD_VULKAN_VIDEO_CODEC_AV1_DECODE_SPEC_VERSION` packed —
+/// `VK_MAKE_VIDEO_STD_VERSION(1, 0, 0)`.
+pub const VK_STD_VULKAN_VIDEO_CODEC_AV1_DECODE_SPEC_VERSION: u32 = 1u32 << 22;
 
 // ─────────────────────────── Memory property bits ────────────────────────────
 
@@ -1012,6 +1103,56 @@ pub struct VkVideoDecodeH264CapabilitiesKHR {
     pub p_next: *mut c_void,
     pub max_level_idc: StdVideoH264LevelIdc,
     pub field_offset_granularity: VkOffset2D,
+}
+
+/// `VkVideoDecodeH265ProfileInfoKHR` — H.265-specific extension
+/// chained off `VkVideoProfileInfoKHR.pNext`. Unlike H.264 the spec
+/// has no picture-layout field at this level (H.265 always reports
+/// frame-level layout through the `VkVideoCapabilitiesKHR` flags).
+#[repr(C)]
+#[derive(Debug)]
+pub struct VkVideoDecodeH265ProfileInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub std_profile_idc: StdVideoH265ProfileIdc,
+}
+
+/// `VkVideoDecodeH265CapabilitiesKHR` — chained off
+/// `VkVideoDecodeCapabilitiesKHR.pNext`. Reports the H.265 profile-
+/// specific limit: max level IDC the device supports.
+#[repr(C)]
+#[derive(Debug)]
+pub struct VkVideoDecodeH265CapabilitiesKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *mut c_void,
+    pub max_level_idc: StdVideoH265LevelIdc,
+}
+
+/// `VkVideoDecodeAV1ProfileInfoKHR` — AV1-specific extension chained
+/// off `VkVideoProfileInfoKHR.pNext`. Carries the AV1 profile enum
+/// plus a `filmGrainSupport` boolean — when set, the application
+/// commits to providing the film-grain parameters to every decoded
+/// frame and the driver may report a larger DPB / different format.
+#[repr(C)]
+#[derive(Debug)]
+pub struct VkVideoDecodeAV1ProfileInfoKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *const c_void,
+    pub std_profile: StdVideoAV1Profile,
+    /// `VkBool32` — non-zero ⇒ the application will provide film-grain
+    /// parameters on every decoded frame. Capability query uses 0.
+    pub film_grain_support: u32,
+}
+
+/// `VkVideoDecodeAV1CapabilitiesKHR` — chained off
+/// `VkVideoDecodeCapabilitiesKHR.pNext`. Reports the AV1 profile-
+/// specific limit: max level the device supports.
+#[repr(C)]
+#[derive(Debug)]
+pub struct VkVideoDecodeAV1CapabilitiesKHR {
+    pub s_type: VkStructureType,
+    pub p_next: *mut c_void,
+    pub max_level: StdVideoAV1Level,
 }
 
 // ─────────────────────────── Video session create / memory ───────────────────
