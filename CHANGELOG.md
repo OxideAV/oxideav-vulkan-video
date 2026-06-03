@@ -81,6 +81,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   extensions the test asserts at-least-HD `max_coded_extent`, level
   ≥ 5.1 for H.265, and `max_dpb_slots ≥ 1`.
 
+### Fixed — Round 4 tests now skip on CI runners without a video-capable Vulkan device
+
+- `h264_decoder_constructs_full_pipeline` previously hard-failed on
+  CI runners whose Vulkan loader was present (Mesa llvmpipe /
+  SwiftShader) but whose device didn't advertise the
+  `VK_KHR_video_decode_h264` extension — the lazy-init path returns
+  an `Unsupported` / VkError before the `OXIDEAV_VK_SKIP_SUBMIT`
+  hook is consulted. The test now soft-skips on any `Unsupported`
+  / `VK_ERROR` / `vulkan-video:` / "no video decode queue family"
+  send_packet failure, matching the loader-missing skip path.
+- `h264_decoder_attempts_decode`'s helper subprocess exits code 2
+  on "any non-driver failure", which on CI translates to "no
+  device advertises H.264 decode". Treat exit code 2 from the
+  helper as a skip rather than a panic; a real driver-side bug
+  still surfaces as a signal (preserved unchanged).
+
 ### Fixed — Round 4 SIGSEGV diagnosis + repair
 
 The Round 4 `vkQueueSubmit`-time NVIDIA SIGSEGV (RTX 5080 / driver
