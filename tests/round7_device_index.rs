@@ -229,6 +229,22 @@ fn device_index_out_of_range_errors() {
         "device_index=99 must produce an error from ensure_state / DecoderState::create",
     );
     let msg = format!("{err}");
+    // The Vulkan loader may resolve via dlopen yet still fail
+    // `vkCreateInstance` on hosts whose driver is too old / wrong
+    // ABI (VK_ERROR_INCOMPATIBLE_DRIVER = -9, common on CI images
+    // with a swrast Mesa that refuses 1.2). The expected
+    // "device_index 99 out of range" diagnostic fires only AFTER
+    // instance creation succeeds; if instance creation itself
+    // fails, the test premise can't be exercised and the right
+    // answer is to skip rather than spuriously assert the wrong
+    // diagnostic.
+    if msg.contains("vkCreateInstance") || msg.contains("VkResult(-9)") {
+        eprintln!(
+            "vulkan-video round7: vkCreateInstance refused on this host \
+             ({msg}); skipping the device_index=99 diagnostic check"
+        );
+        return;
+    }
     assert!(
         msg.contains("device_index 99") && msg.contains("out of range"),
         "expected an out-of-range diagnostic mentioning device_index 99; got: {msg}"
