@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Round 9 typed profile / level labelers
+
+- Six new pure-function public APIs in `video.rs` that turn raw
+  `StdVideo*Profile` / `StdVideo*Level` `i32` values into the spec's
+  canonical short labels:
+  - `h264_profile_label(profile_idc)` → `"Baseline"` / `"Main"` /
+    `"High"` / `"High 4:4:4 Predictive"` / `"unknown(N)"`. Covers the
+    four `STD_VIDEO_H264_PROFILE_IDC_*` constants from
+    `vk_video/vulkan_video_codec_h264std.h`.
+  - `h264_level_label(level_idc)` → `"1.0"` … `"6.2"` via the
+    contiguous std-video table (1.0 → 0 … 6.2 → 18). Values outside
+    0..=18 → `"unknown(N)"`.
+  - `h265_profile_label(profile_idc)` → `"Main"` / `"Main 10"` /
+    `"Main Still Picture"` / `"Format Range Extensions"` /
+    `"Screen Content Coding Extensions"` / `"unknown(N)"`. Covers the
+    five `STD_VIDEO_H265_PROFILE_IDC_*` constants (Main = 1 … SCC = 5).
+  - `h265_level_label(level_idc)` → `"1.0"` … `"6.2"` via the
+    contiguous H.265 std-video table (1.0 → 0 … 6.2 → 12). Anchors
+    line up with the existing `STD_VIDEO_H265_LEVEL_IDC_5_1`/`_6_2`
+    constants.
+  - `av1_profile_label(profile)` → `"Main"` / `"High"` /
+    `"Professional"` / `"unknown(N)"`. Covers the three
+    `STD_VIDEO_AV1_PROFILE_*` constants (Main = 0 … Professional = 2).
+  - `av1_level_label(level)` → `"2.0"` … `"7.3"` via the contiguous
+    AV1 std-video table (2.0 → 0 … 7.3 → 23). Anchors line up with
+    `STD_VIDEO_AV1_LEVEL_5_1`/`_6_3`.
+- Wired into `engine.rs` so each `HwCodecCaps` row populated by
+  `engine_info()` now publishes a human-readable profile label
+  alongside the dimension and DPB fields. Three behavioural deltas
+  per device row:
+  - `profiles` lists the spec-canonical label (`"High"` for H.264,
+    `"Main"` for HEVC, `"Main"` for AV1) instead of the previous
+    hard-coded literals. The strings are the same today; the change
+    routes them through the new labeler so a future profile bump
+    (HEVC Main 10, AV1 High, …) only needs one site updated.
+  - H.264 `extra` gains a `max_level` entry (e.g. `"6.2"`) next to
+    the existing `max_level_idc` raw value.
+  - HEVC `extra` gains the same `max_level` entry; AV1 `extra` gains
+    a `max_level_label` entry (preserving the existing raw
+    `max_level` integer field so consumers parsing it numerically
+    don't break).
+- 12 new unit tests in `src/video.rs`'s new `tests` module — every
+  labeler is exercised on each `STD_VIDEO_*` constant it claims to
+  recognise, plus an out-of-range / negative value, exercising both
+  the matched-arm and `unknown(N)` paths.
+- New public re-exports in `lib.rs`: `av1_level_label` /
+  `av1_profile_label` / `h264_level_label` / `h264_profile_label` /
+  `h265_level_label` / `h265_profile_label`.
+
+The labelers are pure — no Vulkan call, no allocation beyond the
+returned `String`, no `unsafe`. Lookup is via const `&[&str]` table
+for level enums and `match` on named consts for profiles, so a
+future SDK that adds a new enumerant fails the matching arm and
+surfaces `"unknown(N)"` rather than silently producing the empty
+string.
+
 ### Added — Round 8 HEVC + AV1 capability queries
 
 - New public function

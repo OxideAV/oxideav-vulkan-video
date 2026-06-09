@@ -53,7 +53,8 @@ use crate::sys::{
     VK_API_VERSION_1_2, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT,
 };
 use crate::video::{
-    query_video_decode_av1_capabilities, query_video_decode_h264_capabilities,
+    av1_level_label, av1_profile_label, h264_level_label, h264_profile_label, h265_level_label,
+    h265_profile_label, query_video_decode_av1_capabilities, query_video_decode_h264_capabilities,
     query_video_decode_h265_capabilities,
 };
 use crate::Instance;
@@ -190,7 +191,7 @@ fn build_h264_caps(pd: &PhysicalDevice<'_>, video: &VideoExtensionSupport) -> Hw
             Ok(h264) => {
                 caps.max_width = Some(h264.max_coded_extent.0);
                 caps.max_height = Some(h264.max_coded_extent.1);
-                caps.profiles = vec!["High".to_string()];
+                caps.profiles = vec![h264_profile_label(profile)];
                 caps.extra
                     .push(("max_dpb_slots".to_string(), h264.max_dpb_slots.to_string()));
                 caps.extra.push((
@@ -199,6 +200,10 @@ fn build_h264_caps(pd: &PhysicalDevice<'_>, video: &VideoExtensionSupport) -> Hw
                 ));
                 caps.extra
                     .push(("max_level_idc".to_string(), h264.max_level_idc.to_string()));
+                caps.extra.push((
+                    "max_level".to_string(),
+                    h264_level_label(h264.max_level_idc),
+                ));
                 let std_header = extension_name_string(&h264.std_header_version.extension_name);
                 if !std_header.is_empty() {
                     caps.extra.push(("std_header".to_string(), std_header));
@@ -243,7 +248,7 @@ fn build_hevc_caps(pd: &PhysicalDevice<'_>, video: &VideoExtensionSupport) -> Hw
         if let Ok(h265) = query_video_decode_h265_capabilities(pd, profile) {
             caps.max_width = Some(h265.max_coded_extent.0);
             caps.max_height = Some(h265.max_coded_extent.1);
-            caps.profiles = vec!["Main".to_string()];
+            caps.profiles = vec![h265_profile_label(profile)];
             caps.extra
                 .push(("max_dpb_slots".to_string(), h265.max_dpb_slots.to_string()));
             caps.extra.push((
@@ -252,6 +257,10 @@ fn build_hevc_caps(pd: &PhysicalDevice<'_>, video: &VideoExtensionSupport) -> Hw
             ));
             caps.extra
                 .push(("max_level_idc".to_string(), h265.max_level_idc.to_string()));
+            caps.extra.push((
+                "max_level".to_string(),
+                h265_level_label(h265.max_level_idc),
+            ));
             let std_header = extension_name_string(&h265.std_header_version.extension_name);
             if !std_header.is_empty() {
                 caps.extra.push(("std_header".to_string(), std_header));
@@ -286,7 +295,7 @@ fn build_av1_caps(pd: &PhysicalDevice<'_>) -> HwCodecCaps {
     if let Ok(av1) = query_video_decode_av1_capabilities(pd, profile, false) {
         caps.max_width = Some(av1.max_coded_extent.0);
         caps.max_height = Some(av1.max_coded_extent.1);
-        caps.profiles = vec!["Main".to_string()];
+        caps.profiles = vec![av1_profile_label(profile)];
         caps.extra
             .push(("max_dpb_slots".to_string(), av1.max_dpb_slots.to_string()));
         caps.extra.push((
@@ -295,6 +304,10 @@ fn build_av1_caps(pd: &PhysicalDevice<'_>) -> HwCodecCaps {
         ));
         caps.extra
             .push(("max_level".to_string(), av1.max_level.to_string()));
+        caps.extra.push((
+            "max_level_label".to_string(),
+            av1_level_label(av1.max_level),
+        ));
         let std_header = extension_name_string(&av1.std_header_version.extension_name);
         if !std_header.is_empty() {
             caps.extra.push(("std_header".to_string(), std_header));

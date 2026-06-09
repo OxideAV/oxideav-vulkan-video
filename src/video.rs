@@ -458,6 +458,130 @@ pub fn query_video_decode_av1_capabilities(
     })
 }
 
+// ─────────────────────────── Typed profile / level labelers ─────────────────
+//
+// These take a raw `i32` carried in the std-video enums and return the
+// canonical short label used in spec text and tooling:
+//
+// * H.264 profile IDC is the Annex-A byte (66 = Baseline, 77 = Main,
+//   100 = High, 244 = High 4:4:4 Predictive). All four are exposed as
+//   `STD_VIDEO_H264_PROFILE_IDC_*` constants in [`crate::sys`].
+// * H.264 level IDC is the contiguous index Vulkan's std-video header
+//   uses (1.0 → 0 … 6.2 → 18). The level table in [`crate::sys`]
+//   spells out the mapping from line 293.
+// * H.265 profile IDC is the std-video enum index (Main = 1, Main 10 =
+//   2, Main Still Picture = 3, Format Range Extensions = 4, SCC
+//   Extensions = 5).
+// * H.265 level IDC is the contiguous index (1.0 → 0 … 6.2 → 12).
+// * AV1 profile is `{Main = 0, High = 1, Professional = 2}`.
+// * AV1 level is the contiguous index (2.0 → 0 … 7.3 → 23).
+//
+// Unknown values surface as `"unknown(N)"` so a future SDK revision
+// that introduces a new enumerant doesn't silently turn into the empty
+// string. Callers that need to distinguish "known but new" from
+// "matched a constant" can hand-roll a `match`.
+
+/// Render a [`crate::sys::StdVideoH264ProfileIdc`] as the spec's
+/// short profile name. Returns `"Baseline"`, `"Main"`, `"High"`,
+/// `"High 4:4:4 Predictive"`, or `"unknown(N)"` for values outside
+/// the four `STD_VIDEO_H264_PROFILE_IDC_*` constants.
+pub fn h264_profile_label(profile_idc: StdVideoH264ProfileIdc) -> String {
+    match profile_idc {
+        sys::STD_VIDEO_H264_PROFILE_IDC_BASELINE => "Baseline".to_string(),
+        sys::STD_VIDEO_H264_PROFILE_IDC_MAIN => "Main".to_string(),
+        sys::STD_VIDEO_H264_PROFILE_IDC_HIGH => "High".to_string(),
+        sys::STD_VIDEO_H264_PROFILE_IDC_HIGH_444_PREDICTIVE => "High 4:4:4 Predictive".to_string(),
+        other => format!("unknown({other})"),
+    }
+}
+
+/// Render a [`crate::sys::StdVideoH264LevelIdc`] as `"M.N"` (e.g.
+/// `"5.1"` for the 1080p decode floor). The mapping is the contiguous
+/// table Vulkan's `vk_video/vulkan_video_codec_h264std.h` declares:
+/// 1.0 → 0, 1.1 → 1, 1.2 → 2, 1.3 → 3, 2.0 → 4, 2.1 → 5, 2.2 → 6, 3.0
+/// → 7, 3.1 → 8, 3.2 → 9, 4.0 → 10, 4.1 → 11, 4.2 → 12, 5.0 → 13,
+/// 5.1 → 14, 5.2 → 15, 6.0 → 16, 6.1 → 17, 6.2 → 18. Values outside
+/// 0..=18 surface as `"unknown(N)"`. The H.264 spec's special
+/// `1.b` (Annex-A constrained-baseline marker) is not in the std-
+/// video enum and isn't synthesised here.
+pub fn h264_level_label(level_idc: StdVideoH264LevelIdc) -> String {
+    const LEVELS: &[&str] = &[
+        "1.0", "1.1", "1.2", "1.3", "2.0", "2.1", "2.2", "3.0", "3.1", "3.2", "4.0", "4.1", "4.2",
+        "5.0", "5.1", "5.2", "6.0", "6.1", "6.2",
+    ];
+    if level_idc >= 0 && (level_idc as usize) < LEVELS.len() {
+        LEVELS[level_idc as usize].to_string()
+    } else {
+        format!("unknown({level_idc})")
+    }
+}
+
+/// Render a [`crate::sys::StdVideoH265ProfileIdc`] as the spec's
+/// short profile name. Returns `"Main"`, `"Main 10"`,
+/// `"Main Still Picture"`, `"Format Range Extensions"`,
+/// `"Screen Content Coding Extensions"`, or `"unknown(N)"`.
+pub fn h265_profile_label(profile_idc: StdVideoH265ProfileIdc) -> String {
+    match profile_idc {
+        sys::STD_VIDEO_H265_PROFILE_IDC_MAIN => "Main".to_string(),
+        sys::STD_VIDEO_H265_PROFILE_IDC_MAIN_10 => "Main 10".to_string(),
+        sys::STD_VIDEO_H265_PROFILE_IDC_MAIN_STILL_PICTURE => "Main Still Picture".to_string(),
+        sys::STD_VIDEO_H265_PROFILE_IDC_FORMAT_RANGE_EXTENSIONS => {
+            "Format Range Extensions".to_string()
+        }
+        sys::STD_VIDEO_H265_PROFILE_IDC_SCC_EXTENSIONS => {
+            "Screen Content Coding Extensions".to_string()
+        }
+        other => format!("unknown({other})"),
+    }
+}
+
+/// Render a [`crate::sys::StdVideoH265LevelIdc`] as `"M.N"`. The
+/// mapping is the contiguous table from Vulkan's
+/// `vk_video/vulkan_video_codec_h265std.h`: 1.0 → 0, 2.0 → 1, 2.1 →
+/// 2, 3.0 → 3, 3.1 → 4, 4.0 → 5, 4.1 → 6, 5.0 → 7, 5.1 → 8, 5.2 →
+/// 9, 6.0 → 10, 6.1 → 11, 6.2 → 12. Values outside 0..=12 surface
+/// as `"unknown(N)"`.
+pub fn h265_level_label(level_idc: StdVideoH265LevelIdc) -> String {
+    const LEVELS: &[&str] = &[
+        "1.0", "2.0", "2.1", "3.0", "3.1", "4.0", "4.1", "5.0", "5.1", "5.2", "6.0", "6.1", "6.2",
+    ];
+    if level_idc >= 0 && (level_idc as usize) < LEVELS.len() {
+        LEVELS[level_idc as usize].to_string()
+    } else {
+        format!("unknown({level_idc})")
+    }
+}
+
+/// Render a [`crate::sys::StdVideoAV1Profile`] as `"Main"`,
+/// `"High"`, `"Professional"`, or `"unknown(N)"`.
+pub fn av1_profile_label(profile: StdVideoAV1Profile) -> String {
+    match profile {
+        sys::STD_VIDEO_AV1_PROFILE_MAIN => "Main".to_string(),
+        sys::STD_VIDEO_AV1_PROFILE_HIGH => "High".to_string(),
+        sys::STD_VIDEO_AV1_PROFILE_PROFESSIONAL => "Professional".to_string(),
+        other => format!("unknown({other})"),
+    }
+}
+
+/// Render a [`crate::sys::StdVideoAV1Level`] as `"M.N"`. The mapping
+/// is the contiguous table from Vulkan's
+/// `vk_video/vulkan_video_codec_av1std.h`: 2.0 → 0, 2.1 → 1, 2.2 →
+/// 2, 2.3 → 3, 3.0 → 4, 3.1 → 5, 3.2 → 6, 3.3 → 7, 4.0 → 8, 4.1 →
+/// 9, 4.2 → 10, 4.3 → 11, 5.0 → 12, 5.1 → 13, 5.2 → 14, 5.3 → 15,
+/// 6.0 → 16, 6.1 → 17, 6.2 → 18, 6.3 → 19, 7.0 → 20, 7.1 → 21, 7.2
+/// → 22, 7.3 → 23. Values outside 0..=23 surface as `"unknown(N)"`.
+pub fn av1_level_label(level: StdVideoAV1Level) -> String {
+    const LEVELS: &[&str] = &[
+        "2.0", "2.1", "2.2", "2.3", "3.0", "3.1", "3.2", "3.3", "4.0", "4.1", "4.2", "4.3", "5.0",
+        "5.1", "5.2", "5.3", "6.0", "6.1", "6.2", "6.3", "7.0", "7.1", "7.2", "7.3",
+    ];
+    if level >= 0 && (level as usize) < LEVELS.len() {
+        LEVELS[level as usize].to_string()
+    } else {
+        format!("unknown({level})")
+    }
+}
+
 // ─────────────────────────── Video session ───────────────────────────────────
 
 /// RAII wrapper over `VkVideoSessionKHR`.
@@ -856,4 +980,137 @@ fn pick_memory_type(
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ───── H.264 profile / level labels ────────────────────────────
+
+    #[test]
+    fn h264_profile_label_covers_every_std_constant() {
+        assert_eq!(
+            h264_profile_label(sys::STD_VIDEO_H264_PROFILE_IDC_BASELINE),
+            "Baseline",
+        );
+        assert_eq!(
+            h264_profile_label(sys::STD_VIDEO_H264_PROFILE_IDC_MAIN),
+            "Main",
+        );
+        assert_eq!(
+            h264_profile_label(sys::STD_VIDEO_H264_PROFILE_IDC_HIGH),
+            "High",
+        );
+        assert_eq!(
+            h264_profile_label(sys::STD_VIDEO_H264_PROFILE_IDC_HIGH_444_PREDICTIVE),
+            "High 4:4:4 Predictive",
+        );
+    }
+
+    #[test]
+    fn h264_profile_label_handles_unknown_value() {
+        // 88 = Extended profile (not exposed as a const). We don't
+        // pretend to recognise it.
+        assert_eq!(h264_profile_label(88), "unknown(88)");
+        assert_eq!(h264_profile_label(-1), "unknown(-1)");
+    }
+
+    #[test]
+    fn h264_level_label_anchors_match_sys_constants() {
+        // The level table mapping is defined alongside the `sys`
+        // constants. Spot-check the anchor levels every consumer codec
+        // ends up rendering.
+        assert_eq!(h264_level_label(sys::STD_VIDEO_H264_LEVEL_IDC_4_0), "4.0",);
+        assert_eq!(h264_level_label(sys::STD_VIDEO_H264_LEVEL_IDC_5_1), "5.1",);
+        assert_eq!(h264_level_label(sys::STD_VIDEO_H264_LEVEL_IDC_6_2), "6.2",);
+        // Lowest entry in the std table.
+        assert_eq!(h264_level_label(0), "1.0");
+    }
+
+    #[test]
+    fn h264_level_label_handles_unknown_value() {
+        assert_eq!(h264_level_label(99), "unknown(99)");
+        assert_eq!(h264_level_label(-2), "unknown(-2)");
+    }
+
+    // ───── H.265 profile / level labels ────────────────────────────
+
+    #[test]
+    fn h265_profile_label_covers_every_std_constant() {
+        assert_eq!(
+            h265_profile_label(sys::STD_VIDEO_H265_PROFILE_IDC_MAIN),
+            "Main",
+        );
+        assert_eq!(
+            h265_profile_label(sys::STD_VIDEO_H265_PROFILE_IDC_MAIN_10),
+            "Main 10",
+        );
+        assert_eq!(
+            h265_profile_label(sys::STD_VIDEO_H265_PROFILE_IDC_MAIN_STILL_PICTURE),
+            "Main Still Picture",
+        );
+        assert_eq!(
+            h265_profile_label(sys::STD_VIDEO_H265_PROFILE_IDC_FORMAT_RANGE_EXTENSIONS),
+            "Format Range Extensions",
+        );
+        assert_eq!(
+            h265_profile_label(sys::STD_VIDEO_H265_PROFILE_IDC_SCC_EXTENSIONS),
+            "Screen Content Coding Extensions",
+        );
+    }
+
+    #[test]
+    fn h265_profile_label_handles_unknown_value() {
+        assert_eq!(h265_profile_label(7), "unknown(7)");
+        assert_eq!(h265_profile_label(0), "unknown(0)");
+    }
+
+    #[test]
+    fn h265_level_label_anchors_match_sys_constants() {
+        assert_eq!(h265_level_label(sys::STD_VIDEO_H265_LEVEL_IDC_5_1), "5.1",);
+        assert_eq!(h265_level_label(sys::STD_VIDEO_H265_LEVEL_IDC_6_2), "6.2",);
+        // Edges.
+        assert_eq!(h265_level_label(0), "1.0");
+        assert_eq!(h265_level_label(12), "6.2");
+    }
+
+    #[test]
+    fn h265_level_label_handles_unknown_value() {
+        assert_eq!(h265_level_label(13), "unknown(13)");
+        assert_eq!(h265_level_label(-1), "unknown(-1)");
+    }
+
+    // ───── AV1 profile / level labels ──────────────────────────────
+
+    #[test]
+    fn av1_profile_label_covers_every_std_constant() {
+        assert_eq!(av1_profile_label(sys::STD_VIDEO_AV1_PROFILE_MAIN), "Main",);
+        assert_eq!(av1_profile_label(sys::STD_VIDEO_AV1_PROFILE_HIGH), "High",);
+        assert_eq!(
+            av1_profile_label(sys::STD_VIDEO_AV1_PROFILE_PROFESSIONAL),
+            "Professional",
+        );
+    }
+
+    #[test]
+    fn av1_profile_label_handles_unknown_value() {
+        assert_eq!(av1_profile_label(3), "unknown(3)");
+        assert_eq!(av1_profile_label(-1), "unknown(-1)");
+    }
+
+    #[test]
+    fn av1_level_label_anchors_match_sys_constants() {
+        assert_eq!(av1_level_label(sys::STD_VIDEO_AV1_LEVEL_5_1), "5.1");
+        assert_eq!(av1_level_label(sys::STD_VIDEO_AV1_LEVEL_6_3), "6.3");
+        // Edges.
+        assert_eq!(av1_level_label(0), "2.0");
+        assert_eq!(av1_level_label(23), "7.3");
+    }
+
+    #[test]
+    fn av1_level_label_handles_unknown_value() {
+        assert_eq!(av1_level_label(24), "unknown(24)");
+        assert_eq!(av1_level_label(-3), "unknown(-3)");
+    }
 }
