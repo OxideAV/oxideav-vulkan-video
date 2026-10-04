@@ -107,12 +107,21 @@ pub use engine::engine_info;
 /// anything; the framework's pure-Rust H.264 path remains the only
 /// resolution candidate.
 ///
-/// The H.264 decoder factory is registered with priority 20 so it
-/// takes precedence over the pure-Rust path (priority 0) but defers
-/// to a hypothetical higher-priority hardware bridge if one is added
-/// later. The factory itself surfaces `Error::Unsupported` if the
+/// The H.264 decoder factory is registered at
+/// [`H264_DECODE_PRIORITY`], behind the pure-Rust decoder (see
+/// there). The factory itself surfaces `Error::Unsupported` if the
 /// Vulkan device disagrees at runtime, so the registry will fall back
 /// to the next implementation.
+/// Resolution priority of the Vulkan Video H.264 decoder (lower wins).
+///
+/// The decoder still covers IDR pictures only (a single setup
+/// reference slot, no inter prediction), so it must not outrank the
+/// complete pure-Rust `h264_sw` (priority 100): it used to win
+/// selection on any Vulkan-Video-capable host and real streams decoded
+/// to a single frame. It stays registered so callers can opt in with
+/// `CodecPreferences::prefer` / `require_hardware`.
+pub const H264_DECODE_PRIORITY: i32 = 150;
+
 #[cfg(feature = "registry")]
 pub fn register(ctx: &mut oxideav_core::RuntimeContext) {
     use oxideav_core::{CodecCapabilities, CodecId, CodecInfo, CodecTag};
@@ -129,7 +138,7 @@ pub fn register(ctx: &mut oxideav_core::RuntimeContext) {
         .with_lossy(true)
         .with_intra_only(false)
         .with_hardware(true)
-        .with_priority(20);
+        .with_priority(H264_DECODE_PRIORITY);
 
     ctx.codecs.register(
         CodecInfo::new(CodecId::new("h264"))

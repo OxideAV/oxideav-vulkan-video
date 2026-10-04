@@ -103,9 +103,10 @@ of scope.)
 
 ## Priority and opt-out
 
-Hardware factories register with `CodecCapabilities::with_priority(20)`
-— slightly higher (worse) than VA-API (10) and NVENC (5), reflecting
-that Vulkan Video driver maturity varies by vendor. `--no-hwaccel` on
+The H.264 decoder registers at `H264_DECODE_PRIORITY` (150; lower
+wins) — *behind* the pure-Rust `h264_sw` (100), because it still
+decodes IDR pictures only. Callers opt in with
+`CodecPreferences::prefer` / `require_hardware`. `--no-hwaccel` on
 the `oxideav` CLI biases dispatch away from HW factories without
 unregistering them.
 
