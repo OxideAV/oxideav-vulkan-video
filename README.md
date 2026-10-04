@@ -85,8 +85,9 @@ codec:
 2. **Init failure** — `vkCreateInstance` succeeds but no
    `VkPhysicalDevice` advertises the requested `VK_KHR_video_*`
    extension, or the video-decode/encode queue family is missing. The
-   factory returns `Err`; the registry falls back to the next-priority
-   impl.
+   factory returns `Err`; `oxideav_pipeline::make_decoder_with` /
+   `make_encoder_with` (the selection walker over the registry) falls
+   back to the next-priority impl.
 
 Pipelines that **require** hardware opt out of the SW fallback by
 setting `CodecPreferences { require_hardware: true, .. }`.
@@ -94,8 +95,9 @@ setting `CodecPreferences { require_hardware: true, .. }`.
 ## Platform gating
 
 The whole crate is `#![cfg(any(target_os = "linux", target_os =
-"windows"))]`. On macOS it compiles to an empty rlib; the umbrella
-`oxideav` crate gates the `register` call behind the same cfg. (Vulkan
+"windows"))]`. On macOS it compiles to an empty rlib; `oxideav-meta` only
+pulls the crate in (and so only calls its `register`) under the same
+cfg. (Vulkan
 is reachable on macOS via MoltenVK with a different loading story — out
 of scope.)
 
