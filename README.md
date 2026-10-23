@@ -18,7 +18,7 @@ and Windows. Decode is widely available today; encode is rolling out.
 
 This crate is a **thin runtime-loaded bridge** — no compile-time link
 dependency on the Vulkan loader or any vendor ICD. The loader is opened
-via [`libloading`] on first use:
+via [`dlsym`](https://crates.io/crates/dlsym) on first use:
 
 | Platform | Loader filename |
 |----------|-----------------|

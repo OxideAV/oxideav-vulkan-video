@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Other
 
 - edition 2024, MSRV 1.95
+- loader: `dlsym` replaces `libloading` for the Vulkan loader handle; the four bootstrap entry points are resolved with typed `get::<FnVk*>` lookups (no symbol `transmute`)
 
 ## [0.0.2](https://github.com/OxideAV/oxideav-vulkan-video/compare/v0.0.1...v0.0.2) - 2026-08-23
 

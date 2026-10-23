@@ -3,7 +3,7 @@
 //!
 //! This crate is a **runtime-loaded** bridge to the Vulkan loader:
 //! `libvulkan.so.1` on Linux, `vulkan-1.dll` on Windows. It uses
-//! [`libloading`] to dlopen / `LoadLibrary` the loader on first use,
+//! [`dlsym`] to dlopen / `LoadLibrary` the loader on first use,
 //! so:
 //!
 //! * Builds have **no compile-time link dependency** on Vulkan; if

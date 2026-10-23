@@ -1,7 +1,8 @@
 //! Runtime-loaded Vulkan loader handle.
 //!
-//! Loaded once via `OnceLock` on first use and cached for the process
-//! lifetime. If the dlopen fails the cache stores the error so
+//! Opened through the `dlsym` crate (dlopen on Linux, `LoadLibraryExW`
+//! on Windows) once via `OnceLock` on first use and cached for the
+//! process lifetime. If the open fails the cache stores the error so
 //! subsequent calls don't repeatedly hammer the dynamic linker.
 //!
 //! Library needed for the bridge:
@@ -23,8 +24,8 @@
 //! constructed. Round 1 only wires up the bootstrap; Round 2 will
 //! populate the post-instance dispatch surface.
 
-use libloading::Library;
-use std::ffi::c_void;
+use dlsym::Library;
+use std::ffi::{CStr, c_void};
 use std::os::raw::c_char;
 use std::sync::OnceLock;
 
@@ -2125,41 +2126,44 @@ fn load_smoke() -> Result<FrameworkSmoke, String> {
 fn load_vtable() -> Result<Vtable, String> {
     let libvulkan = open(VULKAN_LIBRARY)?;
 
-    macro_rules! sym {
-        ($lib:expr, $name:expr, $ty:ty) => {{
-            let s: libloading::Symbol<$ty> = unsafe {
-                $lib.get(concat!($name, "\0").as_bytes())
-                    .map_err(|e| format!("dlsym {}: {}", $name, e))?
-            };
-            *s
-        }};
+    // SAFETY: each name below is a Vulkan loader export and `T` is its
+    // spec-declared signature (the `FnVk*` aliases above). The resolved
+    // pointers are stored next to `_libvulkan` in the returned `Vtable`,
+    // so they never outlive the library they point into.
+    unsafe {
+        Ok(Vtable {
+            vk_get_instance_proc_addr: resolve(&libvulkan, c"vkGetInstanceProcAddr")?,
+            vk_create_instance: resolve(&libvulkan, c"vkCreateInstance")?,
+            vk_enumerate_instance_extension_properties: resolve(
+                &libvulkan,
+                c"vkEnumerateInstanceExtensionProperties",
+            )?,
+            vk_enumerate_instance_version: resolve(&libvulkan, c"vkEnumerateInstanceVersion")?,
+            _libvulkan: libvulkan,
+        })
     }
+}
 
-    Ok(Vtable {
-        vk_get_instance_proc_addr: sym!(
-            libvulkan,
-            "vkGetInstanceProcAddr",
-            FnVkGetInstanceProcAddr
-        ),
-        vk_create_instance: sym!(libvulkan, "vkCreateInstance", FnVkCreateInstance),
-        vk_enumerate_instance_extension_properties: sym!(
-            libvulkan,
-            "vkEnumerateInstanceExtensionProperties",
-            FnVkEnumerateInstanceExtensionProperties
-        ),
-        vk_enumerate_instance_version: sym!(
-            libvulkan,
-            "vkEnumerateInstanceVersion",
-            FnVkEnumerateInstanceVersion
-        ),
-        _libvulkan: libvulkan,
-    })
+/// Resolve one exported entry point of `lib` as the function-pointer
+/// type `T`, releasing the symbol's borrow on the library.
+///
+/// # Safety
+///
+/// `T` must be the spec-declared signature of `name`, and the returned
+/// pointer must not be used after `lib` is dropped — the caller is
+/// expected to store both in the same struct (see [`Vtable`]).
+unsafe fn resolve<T: dlsym::SymbolType>(lib: &Library, name: &CStr) -> Result<T, String> {
+    // SAFETY: forwarded to the caller (signature + lifetime contract).
+    let sym = unsafe { lib.get::<T>(name) }
+        .map_err(|e| format!("dlsym {}: {e}", name.to_string_lossy()))?;
+    // SAFETY: as above — the caller keeps `lib` alive alongside `T`.
+    Ok(unsafe { sym.into_inner() })
 }
 
 fn open(path: &str) -> Result<Library, String> {
-    // SAFETY: dlopen on a soname with no init callbacks; equivalent to
-    // a normal program startup load.
-    unsafe { Library::new(path) }.map_err(|e| format!("dlopen {path}: {e}"))
+    // SAFETY: dlopen / LoadLibrary on a soname with no init callbacks;
+    // equivalent to a normal program startup load.
+    unsafe { Library::open(path) }.map_err(|e| format!("dlopen {path}: {e}"))
 }
 
 #[cfg(test)]
@@ -2178,12 +2182,15 @@ mod tests {
                 return;
             }
         };
-        // Confirm the bootstrap entry is present.
-        let _: libloading::Symbol<unsafe extern "C" fn()> = unsafe {
+        // Confirm the bootstrap entry is present (typed lookup; the
+        // symbol borrows `fw.libvulkan` for as long as it lives).
+        // SAFETY: `FnVkGetInstanceProcAddr` is the spec signature.
+        let sym = unsafe {
             fw.libvulkan
-                .get(b"vkGetInstanceProcAddr\0")
+                .get::<FnVkGetInstanceProcAddr>(c"vkGetInstanceProcAddr")
                 .expect("vkGetInstanceProcAddr symbol")
         };
+        assert!(!sym.as_ptr().is_null());
     }
 
     /// Verify the vtable resolves all symbols. Skip-friendly when

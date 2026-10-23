@@ -7,7 +7,7 @@ license = "MIT"
 repository = "https://github.com/OxideAV/oxideav-vulkan-video"
 homepage = "https://github.com/OxideAV/oxideav-vulkan-video"
 authors = ["Mark Karpeles"]
-description = "Vulkan Video hardware decode/encode bridge for the oxideav framework (Linux + Windows) — runtime-loaded via libloading, no compile-time Vulkan SDK dep"
+description = "Vulkan Video hardware decode/encode bridge for the oxideav framework (Linux + Windows) — runtime-loaded via dlsym, no compile-time Vulkan SDK dep"
 readme = "README.md"
 keywords = ["vulkan", "vulkan-video", "hardware", "video", "oxideav"]
 categories = ["multimedia::encoding", "multimedia::video", "hardware-support"]
@@ -19,12 +19,12 @@ categories = ["multimedia::encoding", "multimedia::video", "hardware-support"]
 oxideav-core = { version = "0.1", optional = true }
 
 # Vulkan ships on Linux (libvulkan.so.1) and Windows (vulkan-1.dll),
-# so libloading is pulled on both. macOS uses MoltenVK with a
+# so dlsym is pulled on both. macOS uses MoltenVK with a
 # different loading story; the entire crate body is gated to
 # `cfg(any(target_os = "linux", target_os = "windows"))` and compiles
 # to an empty rlib elsewhere.
 [target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
-libloading = "0.8"
+dlsym = "0.0.2"
 # Shared H.264 / HEVC / AV1 minimal parser used to extract SPS / PPS /
 # slice-header fields before populating `StdVideoH264*` structs for the
 # Vulkan video session parameters. The bitstream crate has no target
