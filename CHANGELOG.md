@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.3](https://github.com/OxideAV/oxideav-vulkan-video/compare/v0.0.2...v0.0.3) - 2026-10-23
+
+### Other
+
+- dlsym instead of libloading
+- edition 2024, MSRV 1.95
+- rank the IDR-only H.264 decoder behind the pure-Rust h264_sw
+- README examples use the current registry API
+- anchor /Cargo.lock and untrack the release-committed lockfile (fleet policy)
+
 ### Other
 
 - edition 2024, MSRV 1.95
