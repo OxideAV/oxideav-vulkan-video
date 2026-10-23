@@ -28,7 +28,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-use oxideav_core::{time::TimeBase, CodecId, CodecParameters, Frame, Packet};
+use oxideav_core::{CodecId, CodecParameters, Frame, Packet, time::TimeBase};
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use oxideav_vulkan_video::decoder::H264VkDecoder;
 

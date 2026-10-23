@@ -34,7 +34,7 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use oxideav_core::{time::TimeBase, CodecId, CodecParameters, Packet};
+use oxideav_core::{CodecId, CodecParameters, Packet, time::TimeBase};
 
 use oxideav_vulkan_video::decoder::H264VkDecoder;
 
@@ -108,9 +108,13 @@ fn run_send_packet_skip_submit(
     pkt: &Packet,
 ) -> Result<(), String> {
     let _guard = ENV_HOOK_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-    std::env::set_var("OXIDEAV_VK_SKIP_SUBMIT", "1");
+    // SAFETY: the env mutation is serialised through `ENV_HOOK_LOCK`
+    // (every test in this binary that touches the hook takes it) and
+    // the decoder reads the variable on this thread only.
+    unsafe { std::env::set_var("OXIDEAV_VK_SKIP_SUBMIT", "1") };
     let result = dec.send_packet(pkt);
-    std::env::remove_var("OXIDEAV_VK_SKIP_SUBMIT");
+    // SAFETY: as above; still under the same lock guard.
+    unsafe { std::env::remove_var("OXIDEAV_VK_SKIP_SUBMIT") };
     match result {
         Ok(()) => Ok(()),
         Err(e) => {
@@ -211,7 +215,9 @@ fn device_index_out_of_range_errors() {
             // make() only fails when the loader is missing — we already
             // checked vulkan_available() above, so this is a real
             // problem.
-            panic!("vulkan-video round7: make should succeed even for an out-of-range index — index validation happens lazily on first SPS/PPS: {e}");
+            panic!(
+                "vulkan-video round7: make should succeed even for an out-of-range index — index validation happens lazily on first SPS/PPS: {e}"
+            );
         }
     };
 
@@ -220,9 +226,13 @@ fn device_index_out_of_range_errors() {
     let pkt = make_packet(bytes);
     let result = {
         let _guard = ENV_HOOK_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-        std::env::set_var("OXIDEAV_VK_SKIP_SUBMIT", "1");
+        // SAFETY: the env mutation is serialised through `ENV_HOOK_LOCK`
+        // (every test in this binary that touches the hook takes it) and
+        // the decoder reads the variable on this thread only.
+        unsafe { std::env::set_var("OXIDEAV_VK_SKIP_SUBMIT", "1") };
         let r = dec.send_packet(&pkt);
-        std::env::remove_var("OXIDEAV_VK_SKIP_SUBMIT");
+        // SAFETY: as above; still under the same lock guard.
+        unsafe { std::env::remove_var("OXIDEAV_VK_SKIP_SUBMIT") };
         r
     };
     let err = result.expect_err(

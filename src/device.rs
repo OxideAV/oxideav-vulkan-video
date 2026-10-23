@@ -25,7 +25,7 @@ use std::ffi::CString;
 use std::os::raw::c_char;
 use std::ptr;
 
-use crate::instance::{load_device_fn, VkError};
+use crate::instance::{VkError, load_device_fn};
 use crate::physical_device::PhysicalDevice;
 use crate::sys::{
     FnVkAllocateCommandBuffers, FnVkAllocateMemory, FnVkBeginCommandBuffer, FnVkBindBufferMemory,
@@ -39,8 +39,8 @@ use crate::sys::{
     FnVkFreeCommandBuffers, FnVkFreeMemory, FnVkGetBufferMemoryRequirements, FnVkGetDeviceProcAddr,
     FnVkGetDeviceQueue, FnVkGetImageMemoryRequirements, FnVkGetVideoSessionMemoryRequirementsKHR,
     FnVkMapMemory, FnVkQueueSubmit, FnVkQueueWaitIdle, FnVkUnmapMemory, FnVkWaitForFences,
-    VkDevice, VkDeviceCreateInfo, VkDeviceQueueCreateInfo, VkQueue,
     VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, VK_SUCCESS,
+    VkDevice, VkDeviceCreateInfo, VkDeviceQueueCreateInfo, VkQueue,
 };
 
 /// Default per-queue priority. Vulkan only requires the values to lie

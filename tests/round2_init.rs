@@ -12,8 +12,8 @@
 #![cfg(any(target_os = "linux", target_os = "windows"))]
 
 use oxideav_vulkan_video::{
-    sys::{self, vk_api_version_major, vk_api_version_minor, VK_API_VERSION_1_2},
     Instance,
+    sys::{self, VK_API_VERSION_1_2, vk_api_version_major, vk_api_version_minor},
 };
 
 fn try_init_instance() -> Option<Instance> {

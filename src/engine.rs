@@ -45,19 +45,19 @@
 
 use oxideav_core::{HwCodecCaps, HwDeviceInfo};
 
+use crate::Instance;
 use crate::physical_device::{PhysicalDevice, PhysicalDeviceType, VideoExtensionSupport};
 use crate::sys::{
-    vk_api_version_major, vk_api_version_minor, vk_api_version_patch, StdVideoAV1Profile,
-    StdVideoH264ProfileIdc, StdVideoH265ProfileIdc, VkPhysicalDeviceMemoryProperties,
     STD_VIDEO_AV1_PROFILE_MAIN, STD_VIDEO_H264_PROFILE_IDC_HIGH, STD_VIDEO_H265_PROFILE_IDC_MAIN,
-    VK_API_VERSION_1_2, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT,
+    StdVideoAV1Profile, StdVideoH264ProfileIdc, StdVideoH265ProfileIdc, VK_API_VERSION_1_2,
+    VK_MEMORY_HEAP_DEVICE_LOCAL_BIT, VkPhysicalDeviceMemoryProperties, vk_api_version_major,
+    vk_api_version_minor, vk_api_version_patch,
 };
 use crate::video::{
     av1_level_label, av1_profile_label, h264_level_label, h264_profile_label, h265_level_label,
     h265_profile_label, query_video_decode_av1_capabilities, query_video_decode_h264_capabilities,
     query_video_decode_h265_capabilities,
 };
-use crate::Instance;
 
 /// Enumerate Vulkan Video engines on this host.
 ///
@@ -374,11 +374,7 @@ fn device_local_memory_bytes(pd: &PhysicalDevice<'_>) -> Option<u64> {
         .map(|h| h.size)
         .sum();
 
-    if total == 0 {
-        None
-    } else {
-        Some(total)
-    }
+    if total == 0 { None } else { Some(total) }
 }
 
 /// Decode the NUL-terminated `extensionName` field of a

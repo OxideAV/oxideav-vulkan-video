@@ -76,23 +76,12 @@ use crate::physical_device::{
     VK_KHR_VIDEO_DECODE_H264_NAME, VK_KHR_VIDEO_DECODE_QUEUE_NAME, VK_KHR_VIDEO_QUEUE_NAME,
 };
 use crate::sys::{
-    self, StdVideoDecodeH264PictureInfo, StdVideoDecodeH264PictureInfoFlags,
+    self, STD_VIDEO_H264_CHROMA_FORMAT_IDC_420, STD_VIDEO_H264_PROFILE_IDC_HIGH,
+    StdVideoDecodeH264PictureInfo, StdVideoDecodeH264PictureInfoFlags,
     StdVideoDecodeH264ReferenceInfo, StdVideoH264PictureParameterSet, StdVideoH264PpsFlags,
-    StdVideoH264SequenceParameterSet, StdVideoH264SpsFlags, VkBuffer, VkBufferCreateInfo,
-    VkBufferImageCopy, VkCommandBuffer, VkCommandBufferAllocateInfo, VkCommandBufferBeginInfo,
-    VkCommandPool, VkCommandPoolCreateInfo, VkComponentMapping, VkDeviceMemory, VkExtent2D,
-    VkExtent3D, VkImage, VkImageCreateInfo, VkImageMemoryBarrier, VkImageSubresourceLayers,
-    VkImageSubresourceRange, VkImageView, VkImageViewCreateInfo, VkMemoryAllocateInfo,
-    VkMemoryRequirements, VkOffset2D, VkOffset3D, VkPhysicalDeviceMemoryProperties, VkSubmitInfo,
-    VkVideoBeginCodingInfoKHR, VkVideoCodingControlInfoKHR, VkVideoDecodeH264DpbSlotInfoKHR,
-    VkVideoDecodeH264PictureInfoKHR, VkVideoDecodeH264ProfileInfoKHR,
-    VkVideoDecodeH264SessionParametersAddInfoKHR, VkVideoDecodeH264SessionParametersCreateInfoKHR,
-    VkVideoDecodeInfoKHR, VkVideoEndCodingInfoKHR, VkVideoPictureResourceInfoKHR,
-    VkVideoProfileInfoKHR, VkVideoProfileListInfoKHR, VkVideoReferenceSlotInfoKHR,
-    VkVideoSessionParametersCreateInfoKHR, VkVideoSessionParametersKHR,
-    STD_VIDEO_H264_CHROMA_FORMAT_IDC_420, STD_VIDEO_H264_PROFILE_IDC_HIGH,
-    VK_ACCESS_MEMORY_READ_BIT, VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
-    VK_API_VERSION_1_2, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_BUFFER_USAGE_VIDEO_DECODE_SRC_BIT_KHR,
+    StdVideoH264SequenceParameterSet, StdVideoH264SpsFlags, VK_ACCESS_MEMORY_READ_BIT,
+    VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT, VK_API_VERSION_1_2,
+    VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_BUFFER_USAGE_VIDEO_DECODE_SRC_BIT_KHR,
     VK_COMMAND_BUFFER_LEVEL_PRIMARY, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
     VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_ASPECT_PLANE_0_BIT, VK_IMAGE_ASPECT_PLANE_1_BIT,
@@ -121,9 +110,20 @@ use crate::sys::{
     VK_STRUCTURE_TYPE_VIDEO_SESSION_PARAMETERS_CREATE_INFO_KHR, VK_SUCCESS,
     VK_VIDEO_CHROMA_SUBSAMPLING_420_BIT_KHR, VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR,
     VK_VIDEO_CODING_CONTROL_RESET_BIT_KHR, VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR,
-    VK_VIDEO_DECODE_H264_PICTURE_LAYOUT_PROGRESSIVE_KHR,
+    VK_VIDEO_DECODE_H264_PICTURE_LAYOUT_PROGRESSIVE_KHR, VkBuffer, VkBufferCreateInfo,
+    VkBufferImageCopy, VkCommandBuffer, VkCommandBufferAllocateInfo, VkCommandBufferBeginInfo,
+    VkCommandPool, VkCommandPoolCreateInfo, VkComponentMapping, VkDeviceMemory, VkExtent2D,
+    VkExtent3D, VkImage, VkImageCreateInfo, VkImageMemoryBarrier, VkImageSubresourceLayers,
+    VkImageSubresourceRange, VkImageView, VkImageViewCreateInfo, VkMemoryAllocateInfo,
+    VkMemoryRequirements, VkOffset2D, VkOffset3D, VkPhysicalDeviceMemoryProperties, VkSubmitInfo,
+    VkVideoBeginCodingInfoKHR, VkVideoCodingControlInfoKHR, VkVideoDecodeH264DpbSlotInfoKHR,
+    VkVideoDecodeH264PictureInfoKHR, VkVideoDecodeH264ProfileInfoKHR,
+    VkVideoDecodeH264SessionParametersAddInfoKHR, VkVideoDecodeH264SessionParametersCreateInfoKHR,
+    VkVideoDecodeInfoKHR, VkVideoEndCodingInfoKHR, VkVideoPictureResourceInfoKHR,
+    VkVideoProfileInfoKHR, VkVideoProfileListInfoKHR, VkVideoReferenceSlotInfoKHR,
+    VkVideoSessionParametersCreateInfoKHR, VkVideoSessionParametersKHR,
 };
-use crate::video::{query_video_decode_h264_capabilities, VideoSession};
+use crate::video::{VideoSession, query_video_decode_h264_capabilities};
 
 // ─────────────────────────── helpers ─────────────────────────────────────────
 

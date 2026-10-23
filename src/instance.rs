@@ -17,7 +17,7 @@
 //!    not `Send + Sync` — the user is responsible for keeping it on a
 //!    single thread for the duration of any work.
 
-use std::ffi::{c_void, CStr, CString};
+use std::ffi::{CStr, CString, c_void};
 use std::os::raw::c_char;
 use std::ptr;
 
@@ -26,9 +26,9 @@ use crate::sys::{
     self, FnVkCreateDevice, FnVkDestroyInstance, FnVkEnumerateDeviceExtensionProperties,
     FnVkEnumeratePhysicalDevices, FnVkGetDeviceProcAddr, FnVkGetPhysicalDeviceMemoryProperties,
     FnVkGetPhysicalDeviceProperties, FnVkGetPhysicalDeviceQueueFamilyProperties2,
-    FnVkGetPhysicalDeviceVideoCapabilitiesKHR, VkApplicationInfo, VkInstance, VkInstanceCreateInfo,
-    VkResult, VK_API_VERSION_1_0, VK_STRUCTURE_TYPE_APPLICATION_INFO,
-    VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, VK_SUCCESS,
+    FnVkGetPhysicalDeviceVideoCapabilitiesKHR, VK_API_VERSION_1_0,
+    VK_STRUCTURE_TYPE_APPLICATION_INFO, VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, VK_SUCCESS,
+    VkApplicationInfo, VkInstance, VkInstanceCreateInfo, VkResult,
 };
 
 /// Errors produced by the safe wrapper layer.

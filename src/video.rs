@@ -29,13 +29,7 @@ use crate::instance::VkError;
 use crate::physical_device::PhysicalDevice;
 use crate::sys::{
     self, StdVideoAV1Level, StdVideoAV1Profile, StdVideoH264LevelIdc, StdVideoH264ProfileIdc,
-    StdVideoH265LevelIdc, StdVideoH265ProfileIdc, VkBindVideoSessionMemoryInfoKHR, VkDeviceMemory,
-    VkExtensionProperties, VkExtent2D, VkMemoryAllocateInfo, VkMemoryRequirements,
-    VkPhysicalDeviceMemoryProperties, VkVideoCapabilitiesKHR, VkVideoDecodeAV1CapabilitiesKHR,
-    VkVideoDecodeAV1ProfileInfoKHR, VkVideoDecodeCapabilitiesKHR, VkVideoDecodeH264CapabilitiesKHR,
-    VkVideoDecodeH264ProfileInfoKHR, VkVideoDecodeH265CapabilitiesKHR,
-    VkVideoDecodeH265ProfileInfoKHR, VkVideoProfileInfoKHR, VkVideoSessionCreateInfoKHR,
-    VkVideoSessionKHR, VkVideoSessionMemoryRequirementsKHR, VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
+    StdVideoH265LevelIdc, StdVideoH265ProfileIdc, VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
     VK_MAX_EXTENSION_NAME_SIZE, VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_EXTENSION_NAME,
     VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_SPEC_VERSION,
     VK_STRUCTURE_TYPE_BIND_VIDEO_SESSION_MEMORY_INFO_KHR, VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -51,6 +45,13 @@ use crate::sys::{
     VK_VIDEO_CHROMA_SUBSAMPLING_420_BIT_KHR, VK_VIDEO_CODEC_OPERATION_DECODE_AV1_BIT_KHR,
     VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR, VK_VIDEO_CODEC_OPERATION_DECODE_H265_BIT_KHR,
     VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR, VK_VIDEO_DECODE_H264_PICTURE_LAYOUT_PROGRESSIVE_KHR,
+    VkBindVideoSessionMemoryInfoKHR, VkDeviceMemory, VkExtensionProperties, VkExtent2D,
+    VkMemoryAllocateInfo, VkMemoryRequirements, VkPhysicalDeviceMemoryProperties,
+    VkVideoCapabilitiesKHR, VkVideoDecodeAV1CapabilitiesKHR, VkVideoDecodeAV1ProfileInfoKHR,
+    VkVideoDecodeCapabilitiesKHR, VkVideoDecodeH264CapabilitiesKHR,
+    VkVideoDecodeH264ProfileInfoKHR, VkVideoDecodeH265CapabilitiesKHR,
+    VkVideoDecodeH265ProfileInfoKHR, VkVideoProfileInfoKHR, VkVideoSessionCreateInfoKHR,
+    VkVideoSessionKHR, VkVideoSessionMemoryRequirementsKHR,
 };
 
 // ─────────────────────────── VideoCapabilities ───────────────────────────────

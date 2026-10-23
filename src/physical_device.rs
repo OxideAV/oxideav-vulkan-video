@@ -17,12 +17,13 @@ use std::ptr;
 
 use crate::instance::{InstanceFns, VkError};
 use crate::sys::{
-    VkPhysicalDevice, VkPhysicalDeviceProperties, VkPhysicalDeviceType, VkQueueFamilyProperties2,
-    VkQueueFamilyVideoPropertiesKHR, VK_PHYSICAL_DEVICE_TYPE_CPU,
-    VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU, VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU,
-    VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU, VK_QUEUE_VIDEO_DECODE_BIT_KHR,
-    VK_QUEUE_VIDEO_ENCODE_BIT_KHR, VK_STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2,
-    VK_STRUCTURE_TYPE_QUEUE_FAMILY_VIDEO_PROPERTIES_KHR, VK_SUCCESS,
+    VK_PHYSICAL_DEVICE_TYPE_CPU, VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU,
+    VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU, VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU,
+    VK_QUEUE_VIDEO_DECODE_BIT_KHR, VK_QUEUE_VIDEO_ENCODE_BIT_KHR,
+    VK_STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2,
+    VK_STRUCTURE_TYPE_QUEUE_FAMILY_VIDEO_PROPERTIES_KHR, VK_SUCCESS, VkPhysicalDevice,
+    VkPhysicalDeviceProperties, VkPhysicalDeviceType, VkQueueFamilyProperties2,
+    VkQueueFamilyVideoPropertiesKHR,
 };
 
 // ─────────────────────────── extension name constants ────────────────────────

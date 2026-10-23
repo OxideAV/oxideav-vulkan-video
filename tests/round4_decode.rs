@@ -27,8 +27,14 @@
 
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Mutex;
 
-use oxideav_core::{time::TimeBase, CodecId, CodecParameters, Frame, Packet};
+use oxideav_core::{CodecId, CodecParameters, Frame, Packet, time::TimeBase};
+
+/// Serialises the `OXIDEAV_VK_SKIP_SUBMIT` hook: process environment
+/// mutation is `unsafe` under edition 2024, so every test in this binary
+/// that sets or clears the hook holds this lock while doing so.
+static ENV_HOOK_LOCK: Mutex<()> = Mutex::new(());
 
 fn fixtures_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
@@ -53,7 +59,7 @@ fn read_reference_yuv() -> Option<Vec<u8>> {
 #[test]
 fn h264_parser_finds_sps_pps() {
     use oxideav_bitstream::h264::{
-        parse_pps_nal, parse_sps_nal, split_annex_b, NAL_TYPE_IDR, NAL_TYPE_PPS, NAL_TYPE_SPS,
+        NAL_TYPE_IDR, NAL_TYPE_PPS, NAL_TYPE_SPS, parse_pps_nal, parse_sps_nal, split_annex_b,
     };
 
     let Some(bytes) = read_fixture() else {
@@ -150,9 +156,14 @@ fn h264_decoder_constructs_full_pipeline() {
     // up to (and including) `vkEndCommandBuffer` succeeds. The decode
     // dispatch itself is exercised by `h264_decoder_attempts_decode`
     // below (which forks to absorb the NVIDIA driver SIGSEGV).
-    std::env::set_var("OXIDEAV_VK_SKIP_SUBMIT", "1");
+    let _guard = ENV_HOOK_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    // SAFETY: the env mutation is serialised through `ENV_HOOK_LOCK`
+    // (every test in this binary that touches the hook takes it) and
+    // the decoder reads the variable on this thread only.
+    unsafe { std::env::set_var("OXIDEAV_VK_SKIP_SUBMIT", "1") };
     let result = dec.send_packet(&pkt);
-    std::env::remove_var("OXIDEAV_VK_SKIP_SUBMIT");
+    // SAFETY: as above; still under the same lock guard.
+    unsafe { std::env::remove_var("OXIDEAV_VK_SKIP_SUBMIT") };
 
     // Expect the soft-fail "OXIDEAV_VK_SKIP_SUBMIT set" error,
     // which indicates the pipeline was constructed and recording

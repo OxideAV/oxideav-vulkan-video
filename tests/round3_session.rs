@@ -8,12 +8,12 @@
 #![cfg(any(target_os = "linux", target_os = "windows"))]
 
 use oxideav_vulkan_video::{
+    Device, Instance, PhysicalDevice, VideoSession,
     physical_device::{
         VK_KHR_VIDEO_DECODE_H264_NAME, VK_KHR_VIDEO_DECODE_QUEUE_NAME, VK_KHR_VIDEO_QUEUE_NAME,
     },
     query_video_decode_h264_capabilities,
     sys::{STD_VIDEO_H264_LEVEL_IDC_5_1, STD_VIDEO_H264_PROFILE_IDC_HIGH, VK_API_VERSION_1_2},
-    Device, Instance, PhysicalDevice, VideoSession,
 };
 
 /// Initialise a Vulkan instance, returning `None` if no loader is

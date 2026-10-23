@@ -11,12 +11,12 @@
 #![cfg(any(target_os = "linux", target_os = "windows"))]
 
 use oxideav_vulkan_video::{
-    query_video_decode_av1_capabilities, query_video_decode_h265_capabilities,
+    Instance, PhysicalDevice, query_video_decode_av1_capabilities,
+    query_video_decode_h265_capabilities,
     sys::{
         STD_VIDEO_AV1_PROFILE_MAIN, STD_VIDEO_H265_LEVEL_IDC_5_1, STD_VIDEO_H265_PROFILE_IDC_MAIN,
         VK_API_VERSION_1_2,
     },
-    Instance, PhysicalDevice,
 };
 
 fn try_init_instance() -> Option<Instance> {
