@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.3](https://github.com/OxideAV/oxideav-vulkan-video/compare/v0.0.2...v0.0.3) - 2026-11-07
+
+### Other
+
+- API hygiene: non_exhaustive error/capability records + ExternalDevice, hide loader plumbing
+- dlsym instead of libloading
+- edition 2024, MSRV 1.95
+- rank the IDR-only H.264 decoder behind the pure-Rust h264_sw
+- README examples use the current registry API
+- anchor /Cargo.lock and untrack the release-committed lockfile (fleet policy)
+
 ### Changed
 
 - API hygiene: `VkError`, `ExternalDevice`, `PhysicalDeviceProperties`, `VideoExtensionSupport`, `VideoDecodeH264Capabilities`, `VideoDecodeH265Capabilities` and `VideoDecodeAV1Capabilities` are now `#[non_exhaustive]`. Build `ExternalDevice` with `ExternalDevice::new` + `with_*`. `sys::Vtable`, `sys::FrameworkSmoke` and `sys::framework` are now `#[doc(hidden)]` (internal loader plumbing). The `#[repr(C)]` Vulkan structure mirrors in `sys` and `PhysicalDeviceType` stay exhaustive because the Vulkan ABI fixes them.
