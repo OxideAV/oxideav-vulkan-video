@@ -503,6 +503,7 @@ impl DeviceFns {
 /// queue, so that queue must not be used concurrently from other
 /// threads while a decode call is in flight.
 #[derive(Clone, Copy)]
+#[non_exhaustive]
 pub struct ExternalDevice {
     /// The application's `VkInstance`.
     pub instance: crate::sys::VkInstance,

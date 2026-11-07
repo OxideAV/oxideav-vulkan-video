@@ -41,6 +41,7 @@ use crate::sys::{
 /// often want to fall back to a pure-software path here rather than
 /// surface an error.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum VkError {
     /// The Vulkan loader (`libvulkan.so.1` / `vulkan-1.dll`) couldn't
     /// be opened, or one of the bootstrap symbols was missing.

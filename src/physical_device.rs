@@ -49,6 +49,7 @@ pub const VK_KHR_SYNCHRONIZATION_2_NAME: &str = "VK_KHR_synchronization2";
 
 /// Subset of `VkPhysicalDeviceProperties` returned to safe Rust.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct PhysicalDeviceProperties {
     /// `deviceName` decoded from the C buffer (lossy UTF-8).
     pub name: String,
@@ -92,6 +93,7 @@ impl From<VkPhysicalDeviceType> for PhysicalDeviceType {
 /// Per-codec support summary derived from the device's extension
 /// list.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct VideoExtensionSupport {
     /// `VK_KHR_video_queue`.
     pub queue_khr: bool,

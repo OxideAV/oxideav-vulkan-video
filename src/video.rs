@@ -61,6 +61,7 @@ use crate::sys::{
 /// profile. Only the fields the rest of oxideav cares about are kept;
 /// the raw chain is dropped after the call.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct VideoDecodeH264Capabilities {
     /// Smallest image extent the decoder accepts (typically 16x16).
     pub min_coded_extent: (u32, u32),
@@ -199,6 +200,7 @@ pub fn query_video_decode_h264_capabilities(
 /// `VkVideoCapabilitiesKHR` fields with the H.264 variant and adds
 /// `max_level_idc` from `VkVideoDecodeH265CapabilitiesKHR`.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct VideoDecodeH265Capabilities {
     /// Smallest image extent the decoder accepts (typically 16x16 or
     /// 8x8 for HEVC CTU-aligned).
@@ -335,6 +337,7 @@ pub fn query_video_decode_h265_capabilities(
 /// `vkGetPhysicalDeviceVideoCapabilitiesKHR`. Mirrors the H.264 /
 /// H.265 shape with `max_level` from `VkVideoDecodeAV1CapabilitiesKHR`.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct VideoDecodeAV1Capabilities {
     /// Smallest image extent the decoder accepts.
     pub min_coded_extent: (u32, u32),

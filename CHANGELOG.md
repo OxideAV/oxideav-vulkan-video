@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- API hygiene: `VkError`, `ExternalDevice`, `PhysicalDeviceProperties`, `VideoExtensionSupport`, `VideoDecodeH264Capabilities`, `VideoDecodeH265Capabilities` and `VideoDecodeAV1Capabilities` are now `#[non_exhaustive]`. Build `ExternalDevice` with `ExternalDevice::new` + `with_*`. `sys::Vtable`, `sys::FrameworkSmoke` and `sys::framework` are now `#[doc(hidden)]` (internal loader plumbing). The `#[repr(C)]` Vulkan structure mirrors in `sys` and `PhysicalDeviceType` stay exhaustive because the Vulkan ABI fixes them.
+
 ### Other
 
 - edition 2024, MSRV 1.95

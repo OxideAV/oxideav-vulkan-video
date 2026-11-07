@@ -2067,6 +2067,7 @@ pub type FnVkWaitForFences = unsafe extern "C" fn(
 /// All fields are `unsafe extern "C" fn(...)` pointer types — callers
 /// are responsible for the FFI invariants (correct argument types,
 /// instance lifetime, `VkResult` checking).
+#[doc(hidden)]
 pub struct Vtable {
     pub vk_get_instance_proc_addr: FnVkGetInstanceProcAddr,
     pub vk_create_instance: FnVkCreateInstance,
@@ -2079,6 +2080,7 @@ pub struct Vtable {
 /// Smoke-test wrapper used by tests + by the pre-flight load check
 /// in `register()`. Holds the raw `Library` handle so callers can
 /// assert that dlopen succeeded without paying the full dlsym tour.
+#[doc(hidden)]
 pub struct FrameworkSmoke {
     pub libvulkan: Library,
 }
@@ -2099,6 +2101,7 @@ pub fn vtable() -> Result<&'static Vtable, &'static str> {
 
 /// Cheap framework-load check used by `register()`. Resolves the
 /// loader but does no dlsym work.
+#[doc(hidden)]
 pub fn framework() -> Result<&'static FrameworkSmoke, &'static str> {
     FRAMEWORK
         .get_or_init(load_smoke)
